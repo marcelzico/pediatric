@@ -1,94 +1,447 @@
 {% extends "patient/base.html" %}
 
 {% block title %}
-    Liste des observations
+    Observations médicales
 {% endblock %}
 
 {% block content %}
-    <div class="page-header">
-        <h1>Observations</h1>
+    <style>
+        .obs-page {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg-soft: #f8fafc;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --muted: #64748b;
+        }
 
-        <a href="{% url 'patient:observation_create' %}" class="btn btn-primary">
-            Nouvelle observation
-        </a>
-    </div>
+        .obs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 22px;
+        }
 
-    <form method="get" class="filters">
-        <input type="search" name="q" value="{{ q }}" placeholder="Nom, prénom, dossier, diagnostic...">
-        
-        <select name="type">
-            <option value="">Tous les types</option>
-            {% for value, label in type_choices %}
-                <option value="{{ value }}" {% if observation_type == value %}selected{% endif %}>
-                    {{ label }}
-                </option>
-            {% endfor %}
-        </select>
+        .obs-header h1 {
+            margin: 0;
+            font-size: 30px;
+            line-height: 1.1;
+        }
 
-        <button type="submit" class="btn btn-secondary">
-            Filtrer
-        </button>
-    </form>
+        .obs-subtitle {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 14px;
+        }
 
-    <div class="card">
-        <div class="table-responsive">
-            <table>
-                <thead>  
-                    <tr>
-                        <th>ID</th>
-                        <th>Nom</th>
-                        <th>Prénoms</th>
-                        <th>Type</th>
-                        <th>Âge</th>
-                        <th>Sexe</th>
-                        <th>Date admission</th>
-                        <th>Suivi</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                                
-                <tbody>
-                    {% for observation in observations %}
+        .obs-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 11px 16px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .obs-btn-primary {
+            color: #fff;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
+        }
+
+        .obs-btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 28px rgba(37, 99, 235, 0.28);
+        }
+
+        .obs-filters {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 18px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+        }
+
+        .obs-filters input[type="search"],
+        .obs-filters select {
+            min-width: 240px;
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: #fff;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .obs-filters input[type="search"]:focus,
+        .obs-filters select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .obs-filters button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 10px;
+            background: #0f172a;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .obs-filters button:hover {
+            opacity: 0.92;
+        }
+
+        .obs-reset-link {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .obs-reset-link:hover {
+            text-decoration: underline;
+        }
+
+        .obs-table-card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.07);
+        }
+
+        .obs-table-responsive {
+            overflow-x: auto;
+        }
+
+        .obs-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1250px;
+        }
+
+        .obs-table thead th {
+            padding: 13px 12px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #475569;
+            background: linear-gradient(180deg, #f8fafc, #eef2f7);
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            text-align: left;
+        }
+
+        .obs-table tbody td {
+            padding: 13px 12px;
+            border-bottom: 1px solid #edf2f7;
+            vertical-align: middle;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .obs-table tbody tr:hover {
+            background: #f8fbff;
+        }
+
+        .mono {
+            font-family: "Courier New", monospace;
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .strong {
+            font-weight: 700;
+        }
+
+        .lit-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            padding: 6px 9px;
+            border-radius: 999px;
+            background: #eef2ff;
+            color: #4338ca;
+            border: 1px solid #c7d2fe;
+            font-weight: 800;
+            font-size: 12px;
+        }
+
+        .type-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .type-nn {
+            background: #ecfeff;
+            color: #0e7490;
+            border: 1px solid #a5f3fc;
+        }
+
+        .type-enfant {
+            background: #f5f3ff;
+            color: #6d28d9;
+            border: 1px solid #ddd6fe;
+        }
+
+        .follow-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .follow-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            color: #475569;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .actions-cell {
+            white-space: nowrap;
+        }
+
+        .action-link {
+            display: inline-block;
+            margin: 2px 6px 2px 0;
+            padding: 6px 9px;
+            border-radius: 9px;
+            font-size: 12px;
+            font-weight: 800;
+            text-decoration: none;
+            border: 1px solid transparent;
+        }
+
+        .action-view {
+            color: #1d4ed8;
+            background: #eff6ff;
+            border-color: #bfdbfe;
+        }
+
+        .action-edit {
+            color: #92400e;
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+
+        .action-exam {
+            color: #065f46;
+            background: #ecfdf5;
+            border-color: #a7f3d0;
+        }
+
+        .action-rehydratation {
+            color: #155e75;
+            background: #ecfeff;
+            border-color: #a5f3fc;
+        }
+
+        .action-traitement {
+            color: #7c2d12;
+            background: #fff7ed;
+            border-color: #fed7aa;
+        }
+
+        .empty-state {
+            padding: 42px 20px;
+            text-align: center;
+            color: var(--muted);
+        }
+
+        .empty-state strong {
+            display: block;
+            font-size: 18px;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+    </style>
+
+    <div class="obs-page">
+        <div class="obs-header">
+            <div>
+                <h1>Observations médicales</h1>
+                <div class="obs-subtitle">
+                    Liste des observations pédiatriques : nouveau-nés, nourrissons et enfants.
+                </div>
+            </div>
+
+            <a href="{% url 'patient:observation_create' %}" class="obs-btn obs-btn-primary">
+                + Nouvelle observation
+            </a>
+        </div>
+
+        <form method="get" class="obs-filters">
+            <input
+                type="search"
+                name="q"
+                value="{{ q }}"
+                placeholder="Rechercher : nom, prénom, dossier, lit, motif..."
+            >
+
+            <select name="type">
+                <option value="">Tous les types</option>
+                {% for value, label in type_choices %}
+                    <option value="{{ value }}" {% if observation_type == value %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <button type="submit">
+                Filtrer
+            </button>
+
+            {% if q or observation_type %}
+                <a href="{% url 'patient:observation_list' %}" class="obs-reset-link">
+                    Réinitialiser
+                </a>
+            {% endif %}
+        </form>
+
+        <div class="obs-table-card">
+            <div class="obs-table-responsive">
+                <table class="obs-table">
+                    <thead>
                         <tr>
-                            <td>{{ observation.pk }}</td>
-                            <td>{{ observation.nom }}</td>
-                            <td>{{ observation.prenoms }}</td>
-                            <td>{{ observation.get_type_observation_display }}</td>
-                            <td>{{ observation.age_display }}</td>
-                            <td>{{ observation.get_sexe_display }}</td>
-                            <td>{{ observation.date_admission|default:"-" }}</td>
-                            <td>
-                                {% with nb_examens=observation.examens_physiques.count %}
-                                    {% if nb_examens > 0 %}
-                                        <span class="badge">
-                                            {{ nb_examens }} examen{{ nb_examens|pluralize }}
+                            <th>ID</th>
+                            <th>Lit</th>
+                            <th>Nom</th>
+                            <th>Prénoms</th>
+                            <th>Type</th>
+                            <th>Âge</th>
+                            <th>Sexe</th>
+                            <th>Date admission</th>
+                            <th>N° dossier</th>
+                            <th>Suivi</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for observation in observations %}
+                            <tr>
+                                <td class="mono">
+                                    {{ observation.pk }}
+                                </td>
+
+                                <td>
+                                    <span class="lit-badge">
+                                        {{ observation.lit|default:"—" }}
+                                    </span>
+                                </td>
+
+                                <td class="strong">
+                                    {{ observation.nom }}
+                                </td>
+
+                                <td>
+                                    {{ observation.prenoms }}
+                                </td>
+
+                                <td>
+                                    {% if observation.type_observation == "NN" %}
+                                        <span class="type-badge type-nn">
+                                            Nouveau-né
                                         </span>
                                     {% else %}
-                                        <span class="muted">-</span>
+                                        <span class="type-badge type-enfant">
+                                            Enfant
+                                        </span>
                                     {% endif %}
-                                {% endwith %}
-                            </td>
-                            <td>
-                                <a href="{% url 'patient:observation_detail' observation.pk %}">Voir</a>
-                                |
-                                <a href="{% url 'patient:observation_update' observation.pk %}">Modifier</a>
-                                |
-                                <a href="{% url 'patient:examen_physique_list' observation.pk %}">Suivi</a>
-                                |
-                                <a href="{% url 'patient:fiche_rehydratation_list' observation.pk %}">Réhydratation</a>
-                                |
-                                <a href="{% url 'patient:traitement_ajustement_list' observation.pk %}">Traitements</a>
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="9" class="muted">
-                                Aucune observation trouvée.
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                                </td>
+
+                                <td>
+                                    {{ observation.age_display }}
+                                </td>
+
+                                <td>
+                                    {{ observation.get_sexe_display }}
+                                </td>
+
+                                <td>
+                                    {{ observation.date_admission|date:"d/m/Y"|default:"—" }}
+                                </td>
+
+                                <td>
+                                    {{ observation.numero_dossier|default:"—" }}
+                                </td>
+
+                                <td>
+                                    <div class="follow-badges">
+                                        <span class="follow-badge">
+                                            Ex. {{ observation.examens_physiques.count }}
+                                        </span>
+
+                                        <span class="follow-badge">
+                                            Réh. {{ observation.fiches_rehydratation.count }}
+                                        </span>
+
+                                        <span class="follow-badge">
+                                            Trait. {{ observation.traitements_ajustes.count }}
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <td class="actions-cell">
+                                    <a class="action-link action-view" href="{% url 'patient:observation_detail' observation.pk %}">
+                                        Voir
+                                    </a>
+
+                                    <a class="action-link action-edit" href="{% url 'patient:observation_update' observation.pk %}">
+                                        Modifier
+                                    </a>
+
+                                    <a class="action-link action-exam" href="{% url 'patient:examen_physique_list' observation.pk %}">
+                                        Examens
+                                    </a>
+
+                                    <a class="action-link action-rehydratation" href="{% url 'patient:fiche_rehydratation_list' observation.pk %}">
+                                        Réhydratation
+                                    </a>
+
+                                    <a class="action-link action-traitement" href="{% url 'patient:traitement_ajustement_list' observation.pk %}">
+                                        Traitements
+                                    </a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="11">
+                                    <div class="empty-state">
+                                        <strong>Aucune observation trouvée</strong>
+                                        Tu peux créer une nouvelle observation ou modifier les filtres.
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 {% endblock %}
