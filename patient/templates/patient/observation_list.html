@@ -1,0 +1,94 @@
+{% extends "patient/base.html" %}
+
+{% block title %}
+    Liste des observations
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Observations</h1>
+
+        <a href="{% url 'patient:observation_create' %}" class="btn btn-primary">
+            Nouvelle observation
+        </a>
+    </div>
+
+    <form method="get" class="filters">
+        <input type="search" name="q" value="{{ q }}" placeholder="Nom, prénom, dossier, diagnostic...">
+        
+        <select name="type">
+            <option value="">Tous les types</option>
+            {% for value, label in type_choices %}
+                <option value="{{ value }}" {% if observation_type == value %}selected{% endif %}>
+                    {{ label }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <button type="submit" class="btn btn-secondary">
+            Filtrer
+        </button>
+    </form>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table>
+                <thead>  
+                    <tr>
+                        <th>ID</th>
+                        <th>Nom</th>
+                        <th>Prénoms</th>
+                        <th>Type</th>
+                        <th>Âge</th>
+                        <th>Sexe</th>
+                        <th>Date admission</th>
+                        <th>Suivi</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                                
+                <tbody>
+                    {% for observation in observations %}
+                        <tr>
+                            <td>{{ observation.pk }}</td>
+                            <td>{{ observation.nom }}</td>
+                            <td>{{ observation.prenoms }}</td>
+                            <td>{{ observation.get_type_observation_display }}</td>
+                            <td>{{ observation.age_display }}</td>
+                            <td>{{ observation.get_sexe_display }}</td>
+                            <td>{{ observation.date_admission|default:"-" }}</td>
+                            <td>
+                                {% with nb_examens=observation.examens_physiques.count %}
+                                    {% if nb_examens > 0 %}
+                                        <span class="badge">
+                                            {{ nb_examens }} examen{{ nb_examens|pluralize }}
+                                        </span>
+                                    {% else %}
+                                        <span class="muted">-</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>
+                                <a href="{% url 'patient:observation_detail' observation.pk %}">Voir</a>
+                                |
+                                <a href="{% url 'patient:observation_update' observation.pk %}">Modifier</a>
+                                |
+                                <a href="{% url 'patient:examen_physique_list' observation.pk %}">Suivi</a>
+                                |
+                                <a href="{% url 'patient:fiche_rehydratation_list' observation.pk %}">Réhydratation</a>
+                                |
+                                <a href="{% url 'patient:traitement_ajustement_list' observation.pk %}">Traitements</a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="9" class="muted">
+                                Aucune observation trouvée.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

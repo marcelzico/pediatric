@@ -1,0 +1,120 @@
+{% extends "patient/base.html" %}
+
+{% block title %}
+    Traitement v{{ ajustement.version }}
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>
+            Traitement v{{ ajustement.version }}
+        </h1>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="{% url 'patient:traitement_ajustement_list' observation.pk %}" class="btn btn-secondary">
+                Retour
+            </a>
+
+            {% if est_dernier %}
+                <a href="{% url 'patient:traitement_ajustement_update' ajustement.pk %}" class="btn btn-primary">
+                    Modifier
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if not est_dernier %}
+        <div class="alert alert-warning">
+            Version historique. Lecture seule.
+        </div>
+    {% endif %}
+
+    <div class="card">
+        <p>
+            <strong>Patient :</strong>
+            {{ observation.nom }} {{ observation.prenoms }}
+        </p>
+
+        <p>
+            <strong>Date / heure :</strong>
+            {{ ajustement.date_heure|date:"d/m/Y H:i" }}
+        </p>
+
+        <p>
+            <strong>Type :</strong>
+            {{ ajustement.get_type_ajustement_display }}
+        </p>
+
+        <p>
+            <strong>Motif :</strong>
+            {{ ajustement.motif|default:"-" }}
+        </p>
+
+        <p>
+            <strong>Notes :</strong>
+            {{ ajustement.notes|default:"-" }}
+        </p>
+    </div>
+
+    <div class="card">
+        <h2>Lignes de traitement</h2>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Nom</th>
+                        <th>Dose</th>
+                        <th>Voie</th>
+                        <th>Fréquence</th>
+                        <th>Durée</th>
+                        <th>Début</th>
+                        <th>Fin</th>
+                        <th>Instructions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for ligne in lignes %}
+                        <tr>
+                            <td>
+                                {{ ligne.get_type_ligne_display }}
+                            </td>
+                            <td>
+                                {{ ligne.nom }}
+                            </td>
+                            <td>
+                                {{ ligne.dose|default:"-" }}
+                            </td>
+                            <td>
+                                {{ ligne.get_voie_display|default:"-" }}
+                            </td>
+                            <td>
+                                {{ ligne.get_frequence_display|default:"-" }}
+                            </td>
+                            <td>
+                                {{ ligne.duree|default:"-" }}
+                            </td>
+                            <td>
+                                {{ ligne.date_debut|date:"d/m/Y H:i"|default:"-" }}
+                            </td>
+                            <td>
+                                {{ ligne.date_fin|date:"d/m/Y H:i"|default:"-" }}
+                            </td>
+                            <td>
+                                {{ ligne.instructions|default:"-" }}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="9" class="muted">
+                                Aucune ligne de traitement.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

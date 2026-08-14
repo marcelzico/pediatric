@@ -1,0 +1,208 @@
+{% extends "patient/base.html" %}
+
+{% block title %}
+    {{ title }}
+{% endblock %}
+
+{% block content %}
+    <style>
+        #traitement-form ul {
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
+        }
+
+        #traitement-form ul li {
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 8px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 6px 10px;
+        }
+
+        .formset-item {
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 18px;
+            background: #fcfcfd;
+        }
+
+        .ligne-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 14px;
+        }
+
+        .ligne-field label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .delete-line {
+            margin-bottom: 10px;
+            color: #b91c1c;
+            font-weight: 600;
+        }
+    </style>
+
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+
+        <a href="{% url 'patient:traitement_ajustement_list' observation.pk %}" class="btn btn-secondary">
+            Retour aux traitements
+        </a>
+    </div>
+
+    <div class="card">
+        <p>
+            <strong>Patient :</strong>
+            {{ observation.nom }} {{ observation.prenoms }}
+        </p>
+
+        <p>
+            <strong>Type :</strong>
+            {{ observation.get_type_observation_display }}
+            |
+            <strong>Âge :</strong>
+            {{ observation.age_display }}
+            |
+            <strong>N° dossier :</strong>
+            {{ observation.numero_dossier|default:"-" }}
+        </p>
+    </div>
+
+    <form method="post" novalidate id="traitement-form">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="alert alert-error">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <div class="card">
+            <h2>Ajustement</h2>
+
+            <div class="form-grid">
+                {{ form.as_p }}
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Lignes de traitement</h2>
+
+            {% if formset.non_form_errors %}
+                <div class="alert alert-error">
+                    {{ formset.non_form_errors }}
+                </div>
+            {% endif %}
+
+            {{ formset.management_form }}
+
+            <div id="lignes-container">
+                {% for ligne_form in formset %}
+                    <div class="formset-item">
+                        {% for hidden in ligne_form.hidden_fields %}
+                            {{ hidden }}
+                        {% endfor %}
+
+                        {% if ligne_form.DELETE %}
+                            <div class="delete-line">
+                                {{ ligne_form.DELETE.label_tag }}
+                                {{ ligne_form.DELETE }}
+                            </div>
+                        {% endif %}
+
+                        {% if ligne_form.non_field_errors %}
+                            <div class="alert alert-error">
+                                {{ ligne_form.non_field_errors }}
+                            </div>
+                        {% endif %}
+
+                        <div class="ligne-grid">
+                            {% for field in ligne_form.visible_fields %}
+                                {% if field.name != "DELETE" %}
+                                    <div class="ligne-field">
+                                        {{ field.label_tag }}
+                                        {{ field }}
+                                        {{ field.errors }}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="formset-actions">
+                <button type="button" class="btn btn-secondary" id="add-ligne">
+                    + Ajouter une ligne
+                </button>
+            </div>
+
+            <template id="ligne-template">
+                <div class="formset-item">
+                    {% for hidden in formset.empty_form.hidden_fields %}
+                        {{ hidden }}
+                    {% endfor %}
+
+                    {% if formset.empty_form.DELETE %}
+                        <div class="delete-line">
+                            {{ formset.empty_form.DELETE.label_tag }}
+                            {{ formset.empty_form.DELETE }}
+                        </div>
+                    {% endif %}
+
+                    <div class="ligne-grid">
+                        {% for field in formset.empty_form.visible_fields %}
+                            {% if field.name != "DELETE" %}
+                                <div class="ligne-field">
+                                    {{ field.label_tag }}
+                                    {{ field }}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <div class="actions">
+            <button type="submit" class="btn btn-primary">
+                Enregistrer
+            </button>
+
+            <a href="{% url 'patient:traitement_ajustement_list' observation.pk %}" class="btn btn-secondary">
+                Annuler
+            </a>
+        </div>
+    </form>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener("click", function (event) {
+            if (!event.target.matches("#add-ligne")) {
+                return;
+            }
+
+            const container = document.getElementById("lignes-container");
+            const template = document.getElementById("ligne-template");
+            const totalFormsInput = document.querySelector('input[name="lignes-TOTAL_FORMS"]');
+
+            if (!container || !template || !totalFormsInput) {
+                return;
+            }
+
+            const currentCount = parseInt(totalFormsInput.value || "0", 10);
+            const newHtml = template.innerHTML.replaceAll("__prefix__", currentCount);
+
+            container.insertAdjacentHTML("beforeend", newHtml);
+            totalFormsInput.value = currentCount + 1;
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        {% block title %}Patient{% endblock %}
+    </title>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --warning: #d97706;
+            --info: #0891b2;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --muted: #64748b;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.45;
+        }
+
+        .container {
+            width: min(1200px, calc(100% - 32px));
+            margin: 0 auto;
+        }
+
+        .topbar {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+
+        .topbar-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 0;
+        }
+
+        .brand {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .topbar nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 9px 14px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: #fff;
+            color: var(--text);
+            border-color: var(--border);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        main {
+            padding: 24px 0 60px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .page-header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+            margin-bottom: 22px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+        }
+
+        .card h2 {
+            margin: 0 0 16px;
+            font-size: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card h3 {
+            margin: 18px 0 10px;
+            font-size: 16px;
+        }
+
+        .form-grid p {
+            margin: 0 0 14px;
+        }
+
+        .form-grid label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        input[type="email"],
+        input[type="tel"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 9px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+            background: #fff;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .radio-list,
+        .checkbox-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            list-style: none;
+            padding-left: 0;
+            margin: 8px 0 0;
+        }
+
+        .radio-list li,
+        .checkbox-list li {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 7px 10px;
+        }
+
+        .messages {
+            margin-bottom: 20px;
+        }
+
+        .alert {
+            padding: 12px 14px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            border: 1px solid transparent;
+        }
+
+        .alert-success {
+            background: #f0fdf4;
+            color: #166534;
+            border-color: #bbf7d0;
+        }
+
+        .alert-error,
+        .alert-danger {
+            background: #fef2f2;
+            color: #991b1b;
+            border-color: #fecaca;
+        }
+
+        .alert-warning {
+            background: #fffbeb;
+            color: #92400e;
+            border-color: #fde68a;
+        }
+
+        .alert-info {
+            background: #ecfeff;
+            color: #155e75;
+            border-color: #a5f3fc;
+        }
+
+        .formset-item {
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            background: #fcfcfd;
+        }
+
+        .formset-actions {
+            margin-top: 12px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 24px;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        th {
+            background: #f8fafc;
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .filters {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
+        .filters input[type="search"],
+        .filters select {
+            min-width: 220px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .section-note {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: -8px;
+            margin-bottom: 14px;
+        }
+
+        @media (max-width: 720px) {
+            .page-header h1 {
+                font-size: 22px;
+            }
+
+            .filters input[type="search"],
+            .filters select {
+                width: 100%;
+                min-width: 0;
+            }
+        }
+
+        .exam-card h3 {
+            margin: 0 0 14px;
+            font-size: 18px;
+        }
+
+        .exam-category {
+            margin: 18px 0 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+            font-size: 15px;
+            color: #334155;
+        }
+
+        .exam-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .exam-field label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .exam-field ul {
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
+        }
+
+        .exam-field li {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="container topbar-inner">
+            <div class="brand">
+                Observations pédiatriques
+            </div>
+
+            <nav>
+                <a href="{% url 'patient:observation_list' %}">Liste</a>
+                <a class="btn btn-primary" href="{% url 'patient:observation_create' %}">
+                    Nouvelle observation
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

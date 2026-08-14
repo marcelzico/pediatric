@@ -1,0 +1,163 @@
+{% extends "patient/base.html" %}
+
+{% block title %}
+    {{ title }}
+{% endblock %}
+
+{% block content %}
+    <style>
+        #examen-physique-form ul {
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
+        }
+
+        #examen-physique-form ul li {
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 8px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 6px 10px;
+        }
+    </style>
+
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+
+        <a href="{% url 'patient:examen_physique_list' observation.pk %}" class="btn btn-secondary">
+            Retour à la liste des examens
+        </a>
+    </div>
+
+    <div class="card">
+        <p>
+            <strong>Patient :</strong>
+            {{ observation.nom }} {{ observation.prenoms }}
+        </p>
+
+        <p>
+            <strong>Type :</strong>
+            {{ observation.get_type_observation_display }}
+            |
+            <strong>Âge :</strong>
+            {{ observation.age_display }}
+            |
+            <strong>N° dossier :</strong>
+            {{ observation.numero_dossier|default:"-" }}
+        </p>
+    </div>
+
+    <form method="post" novalidate id="examen-physique-form">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+            <div class="alert alert-error">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <div class="card">
+            <h2>Informations générales</h2>
+
+            <div class="form-grid">
+                <p>
+                    {{ form.date_heure.label_tag }}
+                    {{ form.date_heure }}
+                    {{ form.date_heure.errors }}
+                </p>
+
+                <p>
+                    {{ form.examine_par.label_tag }}
+                    {{ form.examine_par }}
+                    {{ form.examine_par.errors }}
+                </p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Constantes</h2>
+
+            <div class="form-grid">
+                <p>
+                    {{ form.poids_kg.label_tag }}
+                    {{ form.poids_kg }}
+                    {{ form.poids_kg.errors }}
+                </p>
+
+                <p>
+                    {{ form.temperature_c.label_tag }}
+                    {{ form.temperature_c }}
+                    {{ form.temperature_c.errors }}
+                </p>
+
+                <p>
+                    {{ form.frequence_respiratoire.label_tag }}
+                    {{ form.frequence_respiratoire }}
+                    {{ form.frequence_respiratoire.errors }}
+                </p>
+
+                <p>
+                    {{ form.frequence_cardiaque.label_tag }}
+                    {{ form.frequence_cardiaque }}
+                    {{ form.frequence_cardiaque.errors }}
+                </p>
+
+                <p>
+                    {{ form.tension_arterielle.label_tag }}
+                    {{ form.tension_arterielle }}
+                    {{ form.tension_arterielle.errors }}
+                </p>
+
+                <p>
+                    {{ form.saturation_oxygene.label_tag }}
+                    {{ form.saturation_oxygene }}
+                    {{ form.saturation_oxygene.errors }}
+                </p>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Signes généraux</h2>
+
+            {{ form.signes_generaux.errors }}
+            {{ form.signes_generaux }}
+        </div>
+
+        <div class="card">
+            <h2>Signes fonctionnels</h2>
+
+            {{ form.signes_fonctionnels.errors }}
+            {{ form.signes_fonctionnels }}
+        </div>
+
+        <div class="card">
+            <h2>Conclusion</h2>
+
+            <div class="form-grid">
+                <p>
+                    {{ form.exceptions.label_tag }}
+                    {{ form.exceptions }}
+                    {{ form.exceptions.errors }}
+                </p>
+
+                <p>
+                    {{ form.conclusion.label_tag }}
+                    {{ form.conclusion }}
+                    {{ form.conclusion.errors }}
+                </p>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button type="submit" class="btn btn-primary">
+                Enregistrer
+            </button>
+
+            <a href="{% url 'patient:examen_physique_list' observation.pk %}" class="btn btn-secondary">
+                Annuler
+            </a>
+        </div>
+    </form>
+{% endblock %}

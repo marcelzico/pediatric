@@ -1,0 +1,156 @@
+{% extends "patient/base.html" %}
+
+{% block title %}
+    Observation {{ observation.pk }}
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>
+            {{ observation.nom }} {{ observation.prenoms }}
+        </h1>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="{% url 'patient:observation_update' observation.pk %}" class="btn btn-primary">
+                Modifier
+            </a>
+
+            <a href="{% url 'patient:observation_generate_docx' observation.pk %}" class="btn btn-secondary">
+                Générer DOCX
+            </a>
+
+            <form method="post" action="{% url 'patient:observation_delete' observation.pk %}" onsubmit="return confirm('Supprimer cette observation ?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">
+                    Supprimer
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <section class="card">
+        <h2>État civil</h2>
+
+        <p><strong>Type :</strong> {{ observation.get_type_observation_display }}</p>
+        <p><strong>Nom :</strong> {{ observation.nom }}</p>
+        <p><strong>Prénoms :</strong> {{ observation.prenoms }}</p>
+        <p><strong>Sexe :</strong> {{ observation.get_sexe_display }}</p>
+        <p><strong>Âge :</strong> {{ observation.age_display }}</p>
+        <p><strong>Date de naissance :</strong> {{ observation.date_naissance|default:"-" }}</p>
+        <p><strong>Adresse :</strong> {{ observation.adresse|default:"-" }}</p>
+        <p><strong>Téléphone :</strong> {{ observation.telephone|default:"-" }}</p>
+        <p><strong>Lit :</strong> {{ observation.lit|default:"-" }}</p>
+        <p><strong>N° dossier :</strong> {{ observation.numero_dossier|default:"-" }}</p>
+        <p><strong>Date d'admission :</strong> {{ observation.date_admission|default:"-" }}</p>
+        <p><strong>Motif :</strong> {{ observation.motif_admission|default:"-" }}</p>
+        <p><strong>Diagnostic retenu :</strong> {{ observation.diagnostic_retenu|default:"-" }}</p>
+    </section>
+
+    {% if sections.antecedents_familiaux %}
+        <section class="card">
+            <h2>Antécédents familiaux</h2>
+            <p><strong>Rang dans la fratrie :</strong> {{ sections.antecedents_familiaux.rang_fratrie|default:"-" }}</p>
+            <p><strong>Santé ascendants :</strong> {{ sections.antecedents_familiaux.etat_sante_ascendants|default:"-" }}</p>
+            <p><strong>Santé collatéraux :</strong> {{ sections.antecedents_familiaux.etat_sante_collateraux|default:"-" }}</p>
+            <p><strong>Tares familiales :</strong> {{ sections.antecedents_familiaux.tares_familiales|default:"-" }}</p>
+        </section>
+    {% endif %}
+
+    {% if sections.grossesse %}
+        <section class="card">
+            <h2>Déroulement de la grossesse</h2>
+            <p><strong>Âge de la mère :</strong> {{ sections.grossesse.age_mere|default:"-" }}</p>
+            <p><strong>GPA :</strong> {{ sections.grossesse.gpa|default:"-" }}</p>
+            <p><strong>Nombre CPN :</strong> {{ sections.grossesse.nombre_cpn|default:"-" }}</p>
+            <p><strong>Lieu CPN :</strong> {{ sections.grossesse.lieu_cpn|default:"-" }}</p>
+            <p><strong>Nombre VAT :</strong> {{ sections.grossesse.nombre_vat|default:"-" }}</p>
+            <p><strong>Conclusion :</strong> {{ sections.grossesse.get_conclusion_display|default:"-" }}</p>
+        </section>
+    {% endif %}
+
+    {% if sections.accouchement %}
+        <section class="card">
+            <h2>Déroulement de l'accouchement</h2>
+            <p><strong>Lieu :</strong> {{ sections.accouchement.lieu|default:"-" }}</p>
+            <p><strong>Terme :</strong> {{ sections.accouchement.get_terme_display|default:"-" }}</p>
+            <p><strong>Voie :</strong> {{ sections.accouchement.get_voie_display|default:"-" }}</p>
+            <p><strong>Cri immédiat :</strong> {{ sections.accouchement.get_cri_immediat_display|default:"-" }}</p>
+            <p><strong>Apgar :</strong> {{ sections.accouchement.indice_apgar|default:"-" }}</p>
+            <p><strong>Poids naissance :</strong> {{ sections.accouchement.poids_naissance_kg|default:"-" }} kg</p>
+            <p><strong>Type accouchement :</strong> {{ sections.accouchement.get_type_accouchement_display|default:"-" }}</p>
+            <p><strong>Adaptation néonatale :</strong> {{ sections.accouchement.get_adaptation_neonatale_display|default:"-" }}</p>
+        </section>
+    {% endif %}
+
+    {% if sections.examen_clinique %}
+        <section class="card">
+            <h2>Examen clinique</h2>
+            <p><strong>Date :</strong> {{ sections.examen_clinique.date_examen|default:"-" }}</p>
+            <p><strong>PC :</strong> {{ sections.examen_clinique.pc_cm|default:"-" }} cm</p>
+            <p><strong>PT :</strong> {{ sections.examen_clinique.pt_cm|default:"-" }} cm</p>
+            <p><strong>Poids :</strong> {{ sections.examen_clinique.poids_kg|default:"-" }} kg</p>
+            <p><strong>Taille :</strong> {{ sections.examen_clinique.taille_cm|default:"-" }} cm</p>
+            <p><strong>Conclusion biométrie :</strong> {{ sections.examen_clinique.get_conclusion_biometrie_display|default:"-" }}</p>
+            <p><strong>Signes 3A2S :</strong> {{ sections.examen_clinique.signes_3a2s|default:"-" }}</p>
+            <p><strong>Signes fonctionnels :</strong> {{ sections.examen_clinique.signes_fonctionnels|default:"-" }}</p>
+        </section>
+    {% endif %}
+
+    {% if sections.traitement %}
+        <section class="card">
+            <h2>Traitement</h2>
+            <p><strong>But :</strong> {{ sections.traitement.but|default:"-" }}</p>
+            <p><strong>Symptomatique :</strong> {{ sections.traitement.symptomatique|default:"-" }}</p>
+            <p><strong>Étiologique :</strong> {{ sections.traitement.etiologique|default:"-" }}</p>
+            <p><strong>Surveillance :</strong> {{ sections.traitement.surveillance|default:"-" }}</p>
+        </section>
+    {% endif %}
+
+    {% if episodes %}
+        <section class="card">
+            <h2>Histoire de la maladie</h2>
+
+            {% for episode in episodes %}
+                <div class="formset-item">
+                    <p><strong>Épisode {{ episode.ordre }}</strong></p>
+                    <p><strong>Date :</strong> {{ episode.date_debut|default:"-" }}</p>
+                    <p><strong>Signes :</strong> {{ episode.signes|default:"-" }}</p>
+                    <p><strong>Contexte :</strong> {{ episode.contexte|default:"-" }}</p>
+                    <p><strong>Signes associés :</strong> {{ episode.signes_associes|default:"-" }}</p>
+                    <p><strong>Traitement reçu :</strong> {{ episode.traitement_recu|default:"-" }}</p>
+                    <p><strong>Évolution :</strong> {{ episode.get_evolution_display|default:"-" }}</p>
+                </div>
+            {% endfor %}
+        </section>
+    {% endif %}
+
+    {% if hypotheses %}
+        <section class="card">
+            <h2>Discussion diagnostique</h2>
+
+            {% for hypo in hypotheses %}
+                <div class="formset-item">
+                    <p><strong>Diagnostic {{ hypo.ordre }}</strong></p>
+                    <p><strong>Diagnostic proposé :</strong> {{ hypo.diagnostic_propose|default:"-" }}</p>
+                    <p><strong>Arguments pour :</strong> {{ hypo.arguments_pour|default:"-" }}</p>
+                    <p><strong>Arguments contre :</strong> {{ hypo.arguments_contre|default:"-" }}</p>
+                    <p><strong>Paraclinique :</strong> {{ hypo.paraclinique|default:"-" }}</p>
+                </div>
+            {% endfor %}
+        </section>
+    {% endif %}
+
+    {% if evolutions %}
+        <section class="card">
+            <h2>Évolutions</h2>
+
+            {% for evolution in evolutions %}
+                <div class="formset-item">
+                    <p><strong>Date :</strong> {{ evolution.date|default:"-" }}</p>
+                    <p><strong>Description :</strong> {{ evolution.description|default:"-" }}</p>
+                    <p><strong>Statut :</strong> {{ evolution.get_statut_display|default:"-" }}</p>
+                </div>
+            {% endfor %}
+        </section>
+    {% endif %}
+{% endblock %}

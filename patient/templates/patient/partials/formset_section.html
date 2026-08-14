@@ -1,0 +1,47 @@
+<section class="card" id="{{ section_id|default:'' }}">
+    <h2>{{ title }}</h2>
+
+    {% if subtitle %}
+        <div class="section-note">
+            {{ subtitle }}
+        </div>
+    {% endif %}
+
+    {% if formset.non_form_errors %}
+        <div class="alert alert-error">
+            {{ formset.non_form_errors }}
+        </div>
+    {% endif %}
+
+    {{ formset.management_form }}
+
+    <div class="formset-container" id="container-{{ prefix }}">
+        {% for form in formset %}
+            <div class="formset-item">
+                {% if form.non_field_errors %}
+                    <div class="alert alert-error">
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
+
+                <div class="form-grid">
+                    {{ form.as_p }}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="formset-actions">
+        <button type="button" class="btn btn-secondary add-form-row" data-prefix="{{ prefix }}">
+            + Ajouter
+        </button>
+    </div>
+
+    <template id="template-{{ prefix }}">
+        <div class="formset-item">
+            <div class="form-grid">
+                {{ formset.empty_form.as_p }}
+            </div>
+        </div>
+    </template>
+</section>

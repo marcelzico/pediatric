@@ -1,0 +1,115 @@
+{% extends "patient/base.html" %}
+
+{% block title %}
+    Examens physiques de suivi
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Examens physiques de suivi</h1>
+
+        <a href="{% url 'patient:examen_physique_create' observation.pk %}" class="btn btn-primary">
+            Ajouter un examen
+        </a>
+    </div>
+
+    <div class="card">
+        <p>
+            <strong>Patient :</strong>
+            {{ observation.nom }} {{ observation.prenoms }}
+        </p>
+
+        <p>
+            <strong>Type :</strong>
+            {{ observation.get_type_observation_display }}
+            |
+            <strong>Âge :</strong>
+            {{ observation.age_display }}
+            |
+            <strong>N° dossier :</strong>
+            {{ observation.numero_dossier|default:"-" }}
+        </p>
+
+        <p>
+            <a href="{% url 'patient:observation_detail' observation.pk %}">
+                ← Retour à l'observation
+            </a>
+        </p>
+    </div>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date / heure</th>
+                        <th>Poids (kg)</th>
+                        <th>Temp. (°C)</th>
+                        <th>FR</th>
+                        <th>FC</th>
+                        <th>SpO₂</th>
+                        <th>Conclusion</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for examen in examens %}
+                        <tr>
+                            <td>
+                                {{ examen.date_heure|date:"d/m/Y H:i" }}
+                            </td>
+                            <td>
+                                {{ examen.poids_kg|default:"-" }}
+                            </td>
+                            <td>
+                                {{ examen.temperature_c|default:"-" }}
+                            </td>
+                            <td>
+                                {{ examen.frequence_respiratoire|default:"-" }}
+                            </td>
+                            <td>
+                                {{ examen.frequence_cardiaque|default:"-" }}
+                            </td>
+                            <td>
+                                {{ examen.saturation_oxygene|default:"-" }}
+                            </td>
+                            <td>
+                                {{ examen.conclusion|truncatechars:60|default:"-" }}
+                            </td>
+                            <td>
+                                <a href="{% url 'patient:examen_physique_update' examen.pk %}">
+                                    Modifier
+                                </a>
+
+                                |
+
+                                <form
+                                    method="post"
+                                    action="{% url 'patient:examen_physique_delete' examen.pk %}"
+                                    style="display:inline;"
+                                    onsubmit="return confirm('Supprimer cet examen physique ?');"
+                                >
+                                    {% csrf_token %}
+                                    <button
+                                        type="submit"
+                                        class="btn btn-danger"
+                                        style="padding: 4px 8px; font-size: 13px;"
+                                    >
+                                        Supprimer
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="8" class="muted">
+                                Aucun examen physique de suivi pour cette observation.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

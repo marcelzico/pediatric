@@ -1,0 +1,123 @@
+{% extends "patient/base.html" %}
+
+{% block title %}
+    Fiches de réhydratation
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Fiches de réhydratation</h1>
+
+        <a href="{% url 'patient:fiche_rehydratation_create' observation.pk %}" class="btn btn-primary">
+            Ajouter une fiche
+        </a>
+    </div>
+
+    <div class="card">
+        <p>
+            <strong>Patient :</strong>
+            {{ observation.nom }} {{ observation.prenoms }}
+        </p>
+
+        <p>
+            <strong>Type :</strong>
+            {{ observation.get_type_observation_display }}
+            |
+            <strong>Âge :</strong>
+            {{ observation.age_display }}
+            |
+            <strong>N° dossier :</strong>
+            {{ observation.numero_dossier|default:"-" }}
+        </p>
+
+        <p>
+            <a href="{% url 'patient:observation_detail' observation.pk %}">
+                ← Retour à l'observation
+            </a>
+        </p>
+    </div>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Début</th>
+                        <th>Statut</th>
+                        <th>Poids initial</th>
+                        <th>Poids final</th>
+                        <th>Gain</th>
+                        <th>Quantité</th>
+                        <th>Durée</th>
+                        <th>Évaluations</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for fiche in fiches %}
+                        <tr>
+                            <td>
+                                {{ fiche.heure_debut|date:"d/m/Y H:i" }}
+                            </td>
+                            <td>
+                                {{ fiche.get_statut_display }}
+                            </td>
+                            <td>
+                                {{ fiche.poids_initial_kg|default:"-" }}
+                            </td>
+                            <td>
+                                {{ fiche.poids_final_kg|default:"-" }}
+                            </td>
+                            <td>
+                                {{ fiche.gain_poids_display|default:"-" }}
+                            </td>
+                            <td>
+                                {% if fiche.quantite_liquide_ml %}
+                                    {{ fiche.quantite_liquide_ml }} mL
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ fiche.duree_display|default:"-" }}
+                            </td>
+                            <td>
+                                {{ fiche.evaluations_horaires.count }}
+                            </td>
+                            <td>
+                                <a href="{% url 'patient:fiche_rehydratation_update' fiche.pk %}">
+                                    Modifier
+                                </a>
+
+                                |
+
+                                <form
+                                    method="post"
+                                    action="{% url 'patient:fiche_rehydratation_delete' fiche.pk %}"
+                                    style="display:inline;"
+                                    onsubmit="return confirm('Supprimer cette fiche de réhydratation ?');"
+                                >
+                                    {% csrf_token %}
+                                    <button
+                                        type="submit"
+                                        class="btn btn-danger"
+                                        style="padding: 4px 8px; font-size: 13px;"
+                                    >
+                                        Supprimer
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="9" class="muted">
+                                Aucune fiche de réhydratation pour cette observation.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

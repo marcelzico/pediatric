@@ -1,0 +1,158 @@
+{% extends "patient/base.html" %}
+
+{% block title %}
+    {{ title }}
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+
+        {% if observation and observation.pk %}
+            <div class="badge">
+                Dossier : {{ observation.pk }}
+            </div>
+        {% endif %}
+    </div>
+
+    <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        {% if section_forms.observation.errors %}
+            <div class="alert alert-error">
+                Le formulaire principal contient des erreurs. Merci de vérifier les champs obligatoires.
+            </div>
+        {% endif %}
+
+        {# ================================================== #}
+        {# I. ÉTAT CIVIL / ADMISSION #}
+        {# ================================================== #}
+        {% include "patient/partials/form_section.html" with title="I. État civil / Admission" section_id="etat-civil" form=section_forms.observation only %}
+
+        {# ================================================== #}
+        {# III. HISTOIRE DE LA MALADIE #}
+        {# ================================================== #}
+        {% include "patient/partials/formset_section.html" with title="III. Histoire de la maladie" subtitle="Un épisode par consultation ou maladie. Tu peux ajouter plusieurs épisodes." section_id="histoire-maladie" formset=formsets.episodes prefix="episodes" only %}
+
+        {# ================================================== #}
+        {# ANTÉCÉDENTS FAMILIAUX #}
+        {# ================================================== #}
+        {% include "patient/partials/form_section.html" with title="Antécédents familiaux" section_id="antecedents-familiaux" form=section_forms.antecedents_familiaux only %}
+
+        {# ================================================== #}
+        {# ANTÉCÉDENTS PERSONNELS - GROSSESSE #}
+        {# ================================================== #}
+        {% include "patient/partials/form_section.html" with title="Déroulement de la grossesse" section_id="grossesse" form=section_forms.grossesse only %}
+
+        {# ================================================== #}
+        {# ANTÉCÉDENTS PERSONNELS - ACCOUCHEMENT #}
+        {# ================================================== #}
+        {% include "patient/partials/form_section.html" with title="Déroulement de l'accouchement" section_id="accouchement" form=section_forms.accouchement only %}
+
+        {# ================================================== #}
+        {# ALIMENTATION #}
+        {# ================================================== #}
+        {% include "patient/partials/form_section.html" with title="Alimentation" section_id="alimentation" form=section_forms.alimentation only %}
+
+        {# ================================================== #}
+        {# VACCINATION #}
+        {# ================================================== #}
+        {% include "patient/partials/form_section.html" with title="Vaccination" section_id="vaccination" form=section_forms.vaccination only %}
+
+        {# ================================================== #}
+        {# CONTEXTE ÉPIDÉMIOLOGIQUE #}
+        {# ================================================== #}
+        {% include "patient/partials/form_section.html" with title="Contexte épidémiologique" section_id="contexte-epidemiologique" form=section_forms.contexte_epidemiologique only %}
+
+        {# ================================================== #}
+        {# FICHE SOCIALE #}
+        {# ================================================== #}
+        {% include "patient/partials/form_section.html" with title="Fiche sociale" section_id="fiche-sociale" form=section_forms.fiche_sociale only %}
+
+        {# ================================================== #}
+        {# DÉVELOPPEMENT PSYCHOMOTEUR - ENFANT #}
+        {# ================================================== #}
+        {% if section_forms.developpement_psychomoteur %}
+            {% include "patient/partials/form_section.html" with title="Développement psychomoteur" section_id="developpement-psychomoteur" form=section_forms.developpement_psychomoteur only %}
+        {% endif %}
+
+        {# ================================================== #}
+        {# ANTÉCÉDENTS PERSONNELS - ENFANT #}
+        {# ================================================== #}
+        {% if section_forms.antecedents_personnels %}
+            {% include "patient/partials/form_section.html" with title="Antécédents médicaux et chirurgicaux" section_id="antecedents-personnels" form=section_forms.antecedents_personnels only %}
+        {% endif %}
+
+        {# ================================================== #}
+        {# V. EXAMEN CLINIQUE #}
+        {# ================================================== #}
+        <section class="card" id="examen-clinique">
+            <h2>V. Examen clinique</h2>
+
+            {% if examen_base_form.non_field_errors %}
+                <div class="alert alert-error">
+                    {{ examen_base_form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <div class="form-grid">
+                {{ examen_base_form.as_p }}
+            </div>
+
+            {% for exam_section in exam_sections %}
+                {% include "patient/partials/exam_section.html" with title=exam_section.label form=exam_section.form only %}
+            {% endfor %}
+        </section>
+
+        {# ================================================== #}
+        {# VI. DISCUSSION DIAGNOSTIQUE #}
+        {# ================================================== #}
+        {% include "patient/partials/formset_section.html" with title="VI. Discussion diagnostique" subtitle="Une hypothèse diagnostique par ligne." section_id="discussion-diagnostique" formset=formsets.hypotheses prefix="hypotheses" only %}
+
+        {# ================================================== #}
+        {# VII. TRAITEMENT #}
+        {# ================================================== #}
+        {% include "patient/partials/form_section.html" with title="VII. Traitement proposé" section_id="traitement" form=section_forms.traitement only %}
+
+        {# ================================================== #}
+        {# VIII. SURVEILLANCE / ÉVOLUTION #}
+        {# ================================================== #}
+        {% include "patient/partials/formset_section.html" with title="VIII. Surveillance / Évolution" subtitle="Évolutions ou notes de suivi." section_id="evolutions" formset=formsets.evolutions prefix="evolutions" only %}
+
+        <div class="actions">
+            <button type="submit" class="btn btn-primary">
+                Enregistrer l'observation
+            </button>
+
+            <a href="{% url 'patient:observation_list' %}" class="btn btn-secondary">
+                Annuler
+            </a>
+        </div>
+    </form>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener('click', function (event) {
+            const addButton = event.target.closest('.add-form-row');
+            if (!addButton) {
+                return;
+            }
+
+            const prefix = addButton.dataset.prefix;
+            const container = document.getElementById(`container-${prefix}`);
+            const template = document.getElementById(`template-${prefix}`);
+            const totalFormsInput = document.querySelector(`input[name="${prefix}-TOTAL_FORMS"]`);
+
+            if (!container || !template || !totalFormsInput) {
+                return;
+            }
+
+            const currentCount = parseInt(totalFormsInput.value || '0', 10);
+            const newHtml = template.innerHTML.replaceAll('__prefix__', currentCount);
+
+            container.insertAdjacentHTML('beforeend', newHtml);
+            totalFormsInput.value = currentCount + 1;
+        });
+    </script>
+{% endblock %}

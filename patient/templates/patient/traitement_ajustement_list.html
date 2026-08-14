@@ -1,0 +1,114 @@
+{% extends "patient/base.html" %}
+
+{% block title %}
+    Traitements ajustés
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Traitements ajustés et tracés</h1>
+
+        <a href="{% url 'patient:traitement_ajustement_create' observation.pk %}" class="btn btn-primary">
+            Nouvel ajustement
+        </a>
+    </div>
+
+    <div class="card">
+        <p>
+            <strong>Patient :</strong>
+            {{ observation.nom }} {{ observation.prenoms }}
+        </p>
+
+        <p>
+            <strong>Type :</strong>
+            {{ observation.get_type_observation_display }}
+            |
+            <strong>Âge :</strong>
+            {{ observation.age_display }}
+            |
+            <strong>N° dossier :</strong>
+            {{ observation.numero_dossier|default:"-" }}
+        </p>
+
+        <p>
+            <a href="{% url 'patient:observation_detail' observation.pk %}">
+                ← Retour à l'observation
+            </a>
+        </p>
+    </div>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Version</th>
+                        <th>Date / heure</th>
+                        <th>Type</th>
+                        <th>Motif</th>
+                        <th>Lignes</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for ajustement in ajustements %}
+                        <tr>
+                            <td>
+                                v{{ ajustement.version }}
+                            </td>
+                            <td>
+                                {{ ajustement.date_heure|date:"d/m/Y H:i" }}
+                            </td>
+                            <td>
+                                {{ ajustement.get_type_ajustement_display }}
+                            </td>
+                            <td>
+                                {{ ajustement.motif|truncatechars:60|default:"-" }}
+                            </td>
+                            <td>
+                                {{ ajustement.lignes.count }}
+                            </td>
+                            <td>
+                                <a href="{% url 'patient:traitement_ajustement_detail' ajustement.pk %}">
+                                    Voir
+                                </a>
+
+                                {% if dernier and ajustement.pk == dernier.pk %}
+                                    |
+                                    <a href="{% url 'patient:traitement_ajustement_update' ajustement.pk %}">
+                                        Modifier
+                                    </a>
+
+                                    |
+
+                                    <form
+                                        method="post"
+                                        action="{% url 'patient:traitement_ajustement_delete' ajustement.pk %}"
+                                        style="display:inline;"
+                                        onsubmit="return confirm('Supprimer cette version de traitement ?');"
+                                    >
+                                        {% csrf_token %}
+                                        <button
+                                            type="submit"
+                                            class="btn btn-danger"
+                                            style="padding: 4px 8px; font-size: 13px;"
+                                        >
+                                            Supprimer
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="muted">
+                                Aucun ajustement de traitement pour cette observation.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

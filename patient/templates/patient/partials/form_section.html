@@ -1,0 +1,15 @@
+{% if form %}
+<section class="card" id="{{ section_id|default:'' }}">
+    <h2>{{ title }}</h2>
+
+    {% if form.non_field_errors %}
+        <div class="alert alert-error">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+
+    <div class="form-grid">
+        {{ form.as_p }}
+    </div>
+</section>
+{% endif %}

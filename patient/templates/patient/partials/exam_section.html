@@ -1,0 +1,36 @@
+<section class="card exam-card" id="examen-{{ form.appareil_key }}">
+    <h3>{{ title }}</h3>
+
+    {% if form.non_field_errors %}
+        <div class="alert alert-error">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+
+    {% for category_label, fields in form.grouped_fields %}
+        <h4 class="exam-category">
+            {{ category_label }}
+        </h4>
+
+        <div class="exam-grid">
+            {% for field in fields %}
+                <div class="exam-field">
+                    {% if field.errors %}
+                        <div class="alert alert-error">
+                            {{ field.errors }}
+                        </div>
+                    {% endif %}
+
+                    {{ field.label_tag }}
+                    {{ field }}
+
+                    {% if field.help_text %}
+                        <small class="muted">
+                            {{ field.help_text }}
+                        </small>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endfor %}
+</section>
