@@ -150,32 +150,12 @@ REGIME_CHOICES = [
 # ============================================================
 
 VACCINS_CHOICES = [
-    ("bcg", "BCG"),
-    ("vpo0", "VPO 0"),
-    ("dtc1", "DTC 1"),
-    ("hep1", "Hep 1"),
-    ("hib1", "Hib 1"),
-    ("pentavalent1", "Pentavalent 1"),
-    ("pcv10_1", "PCV-10 1"),
-    ("rotarix1", "Rotarix 1"),
-    ("vpo1", "VPO 1"),
-    ("dtc2", "DTC 2"),
-    ("hep2", "Hep 2"),
-    ("hib2", "Hib 2"),
-    ("pentavalent2", "Pentavalent 2"),
-    ("pcv10_2", "PCV-10 2"),
-    ("rotarix2", "Rotarix 2"),
-    ("vpo2", "VPO 2"),
-    ("dtc3", "DTC 3"),
-    ("hep3", "Hep 3"),
-    ("hib3", "Hib 3"),
-    ("pentavalent3", "Pentavalent 3"),
-    ("pcv10_3", "PCV-10 3"),
-    ("vpi1", "VPI 1"),
-    ("vpo3", "VPO 3 / rappel"),
-    ("var1", "VAR 1"),
-    ("vpi2", "VPI 2"),
-    ("var2", "VAR 2"),
+    ("2_semaine", "BCG ; VPO 0"),
+    ("6_semaine", "DTC 1, Hep 1, Hib 1 (Pentavalent 1) ; PCV-10 1 ; Rotarix 1 ; VPO 1"),
+    ("10_semaine", "DTC 2, Hep 2, Hib 2 (Pentavalent 2) ; PCV-10 2 ; Rotarix 2 ; VPO 2"),
+    ("14_semaine", "DTC 3, Hep 3, Hib 3 (Pentavalent 3) ; PCV-10 3 ; Rotarix 3 ; VPO 3"),
+    ("9_mois", "VAR 1 ; VPI 2"),
+    ("15_mois", "VAR 2"),
     ("autre", "Autre"),
 ]
 
@@ -326,7 +306,7 @@ SIGNES_LUTTE_CHOICES = [
     ("tirage_sus_claviculaire", "Tirage sus-claviculaire"),
     ("tirage_intercostal", "Tirage intercostal"),
     ("tirage_sous_costal", "Tirage sous-costal"),
-    ("tirage_xiphoide", "Tirage xiphoïdien"),
+    ("tirage_xiphoide", "entonnoir xiphoïdien"),
     ("battement_ailes_nez", "Battement des ailes du nez"),
     ("balancement_thoraco_abdominal", "Balancement thoraco-abdominal"),
 ]
@@ -370,6 +350,8 @@ LOCALISATION_PULMONAIRE_CHOICES = [
     ("apicale", "Apicale"),
     ("apicale_d", "Apicale droite"),
     ("apicale_g", "Apicale gauche"),
+    ("tier_moyen_d", "Tier moyen droite"),
+    ("tier_moyen_g", "Tier moyen gauche"),
     ("basale_d", "Basale droite"),
     ("basale_g", "Basale gauche"),
     ("axillaire", "Axillaire"),
@@ -1202,18 +1184,14 @@ EXAMEN_DEFAULTS = {
 SIGNES_GENERAUX_SUIVI_CHOICES = [
     ("asthenie", "Asthénie"),
     ("fievre", "Fièvre"),
-    ("paleur", "Pâleur"),
-    ("cyanose", "Cyanose"),
-    ("ictere", "Ictère"),
-    ("oedemes", "Œdèmes"),
     ("sueurs", "Sueurs"),
-    ("agitation", "Agitation"),
     ("lethargie", "Léthargie"),
-    ("convulsions", "Convulsions"),
-    ("deshydratation", "Déshydratation"),
     ("hypotonie", "Hypotonie"),
     ("hypertonie", "Hypertonie"),
     ("refus_alimentaire", "Refus alimentaire"),
+    ("finit_ration", "Finit sa ration"),
+    ("tolere_gavage", "Tolère son gavage"),
+    ("tolere_pas_gavage", "Ne tolère pas son gavage"),
     ("autre", "Autre"),
 ]
 
@@ -1227,8 +1205,7 @@ SIGNES_FONCTIONNELS_SUIVI_CHOICES = [
     ("oligurie", "Oligurie"),
     ("anurie", "Anurie"),
     ("polyurie", "Polyurie"),
-    ("convulsions", "Convulsions"),
-    ("refus_alimentaire", "Refus alimentaire"),
+    ("mvt_anormaux", "Mouvements anormaux"),
     ("somnolence", "Somnolence"),
     ("irritabilite", "Irritabilité"),
     ("autre", "Autre"),
@@ -1238,42 +1215,6 @@ SIGNES_FONCTIONNELS_SUIVI_CHOICES = [
 # ============================================================
 # SIGNES POUR RÉHYDRATATION / SUIVI
 # ============================================================
-
-SIGNES_GENERAUX_SUIVI_CHOICES = [
-    ("asthenie", "Asthénie"),
-    ("fievre", "Fièvre"),
-    ("paleur", "Pâleur"),
-    ("cyanose", "Cyanose"),
-    ("ictere", "Ictère"),
-    ("oedemes", "Œdèmes"),
-    ("sueurs", "Sueurs"),
-    ("agitation", "Agitation"),
-    ("lethargie", "Léthargie"),
-    ("convulsions", "Convulsions"),
-    ("deshydratation", "Déshydratation"),
-    ("hypotonie", "Hypotonie"),
-    ("hypertonie", "Hypertonie"),
-    ("refus_alimentaire", "Refus alimentaire"),
-    ("autre", "Autre"),
-]
-
-SIGNES_FONCTIONNELS_SUIVI_CHOICES = [
-    ("dyspnee", "Dyspnée"),
-    ("toux", "Toux"),
-    ("douleur", "Douleur"),
-    ("vomissements", "Vomissements"),
-    ("diarrhee", "Diarrhée"),
-    ("constipation", "Constipation"),
-    ("oligurie", "Oligurie"),
-    ("anurie", "Anurie"),
-    ("polyurie", "Polyurie"),
-    ("convulsions", "Convulsions"),
-    ("refus_alimentaire", "Refus alimentaire"),
-    ("somnolence", "Somnolence"),
-    ("irritabilite", "Irritabilité"),
-    ("autre", "Autre"),
-]
-
 
 ETAT_YEUX_CHOICES = [
     ("enfonce", "Enfoncé"),

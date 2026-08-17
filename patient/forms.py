@@ -27,7 +27,7 @@ from .models import (
     EvaluationHoraireRehydratation,
     TraitementAjustement,
     LigneTraitement,
-    
+
 )
 
 
@@ -150,7 +150,7 @@ class GrossesseForm(forms.ModelForm):
             'nombre_cpn',
             'lieu_cpn',
             'nombre_vat',
-            'serologies',  # JSONField - sera géré séparément
+            # 'serologies',  # JSONField - sera géré séparément
             'nombre_echographies',
             'resultat_echographie',
             'pathologies_grossesse',
@@ -174,7 +174,6 @@ class GrossesseForm(forms.ModelForm):
 # ============================================================
 # 4. ACCOUCHEMENT
 # ============================================================
-
 class AccouchementForm(forms.ModelForm):
     """Formulaire pour les détails de l'accouchement."""
     
@@ -198,6 +197,14 @@ class AccouchementForm(forms.ModelForm):
         required=False,
         label="Réanimation ?",
     )
+
+    # 👇 CORRECTION DU BUG ICI 👇
+    manoeuvre_obstetricale = JSONMultipleChoiceField(
+        choices=C.MANOEUVRE_OBSTETRICALE_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Manœuvre obstétricale",
+    )
     
     class Meta:
         model = Accouchement
@@ -210,7 +217,7 @@ class AccouchementForm(forms.ModelForm):
             'duree_poussee_minutes',
             'terme',
             'voie',
-            'manoeuvre_obstetricale',  # JSONField
+            'manoeuvre_obstetricale',  # Le champ est maintenant bien typé
             'cri_immediat',
             'indice_apgar',
             'asphyxie',
@@ -230,6 +237,7 @@ class AccouchementForm(forms.ModelForm):
             'presentation': forms.Select,
             'terme': forms.RadioSelect,
             'voie': forms.RadioSelect,
+            # On peut laisser le widget ici, ça ne gêne pas, mais la redéfinition au-dessus prime
             'manoeuvre_obstetricale': forms.CheckboxSelectMultiple,
             'liquide_amniotique_couleur': forms.Select,
             'liquide_amniotique_abondance': forms.Select,
@@ -238,7 +246,6 @@ class AccouchementForm(forms.ModelForm):
             'adaptation_neonatale': forms.RadioSelect,
             'conclusion': forms.Textarea(attrs={'rows': 2}),
         }
-
 
 # ============================================================
 # 5. ALIMENTATION
@@ -497,9 +504,9 @@ class ExamenCliniqueForm(forms.ModelForm):
             # Biométrie
             'pc_cm',
             'pt_cm',
-            'pbd_cm',
-            'pbg_cm',
-            'pb_cm',
+            'pbd_mm',
+            'pbg_mm',
+            'pb_mm',
             'poids_kg',
             'taille_cm',
             'p_t',
@@ -512,14 +519,14 @@ class ExamenCliniqueForm(forms.ModelForm):
             'signes_generaux_precision',
             'signes_fonctionnels',
             # Examens par appareil (JSONField)
-            'pleuropulmonaire',
-            'cardiovasculaire',
-            'digestif',
-            'neurologique',
-            'orl',
-            'cutaneomuqueux',
-            'genitaux',
-            'osteoarticulaire',
+            # 'pleuropulmonaire',
+            # 'cardiovasculaire',
+            # 'digestif',
+            # 'neurologique',
+            # 'orl',
+            # 'cutaneomuqueux',
+            # 'genitaux',
+            # 'osteoarticulaire',
         ]
         widgets = {
             'date_examen': forms.DateInput(attrs={'type': 'date'}),
@@ -559,9 +566,9 @@ class ExamenCliniqueBaseForm(forms.ModelForm):
             "date_examen",
             "pc_cm",
             "pt_cm",
-            "pbd_cm",
-            "pbg_cm",
-            "pb_cm",
+            "pbd_mm",
+            "pbg_mm",
+            "pb_mm",
             "poids_kg",
             "taille_cm",
             "p_t",
@@ -914,7 +921,7 @@ class FicheRehydratationForm(forms.ModelForm):
             "poids_initial_kg",
             "poids_final_kg",
             "quantite_liquide_ml",
-            "duree_minutes",
+            "duree_heure",
             "notes",
         ]
         widgets = {
@@ -1216,5 +1223,1348 @@ LigneTraitementFormSet = inlineformset_factory(
     extra=2,
     can_delete=True,
 )
+
+
+# ============================================================
+# SÉROLOGIES DE GROSSESSE (SOUS-FORMULAIRE)
+# ============================================================
+
+class SerologiesForm(forms.Form):
+    """
+    Sous-formulaire pour gérer les sérologies de grossesse.
+    Déplie le JSONField 'serologies' en champs Django classiques.
+    """
+    
+    SEROLOGIE_KEYS = [
+        ("bw", "BW (Syphilis)"),
+        ("vih", "VIH"),
+        ("toxoplasmose", "Toxoplasmose"),
+        ("rubeole", "Rubéole"),
+        ("hb", "Hépatite B"),
+    ]
+    
+    def __init__(self, *args, json_data=None, **kwargs):
+        self.json_data = json_data if isinstance(json_data, dict) else {}
+        super().__init__(*args, **kwargs)
+        
+        for key, label in self.SEROLOGIE_KEYS:
+            data = self.json_data.get(key, {}) if isinstance(self.json_data.get(key), dict) else {}
+            
+            # Champ "Fait" (checkbox)
+            self.fields[f"{key}_fait"] = forms.BooleanField(
+                required=False,
+                label=f"{label} - Fait",
+                initial=data.get("fait", False),
+            )
+            
+            # Champ "Résultat" (radio +/-)
+            self.fields[f"{key}_resultat"] = forms.ChoiceField(
+                choices=[("", "—"), ("positif", "Positif (+)"), ("negatif", "Négatif (-)")],
+                required=False,
+                label=f"{label} - Résultat",
+                initial=data.get("resultat", ""),
+                widget=forms.RadioSelect,
+            )
+    
+    def get_json(self):
+        """Replie les données en structure JSON."""
+        if not self.is_valid():
+            return self.json_data
+        
+        result = {}
+        for key, _ in self.SEROLOGIE_KEYS:
+            fait = self.cleaned_data.get(f"{key}_fait", False)
+            resultat = self.cleaned_data.get(f"{key}_resultat", "")
+            
+            # On ne stocke que si au moins une info est présente
+            if fait or resultat:
+                result[key] = {
+                    "fait": bool(fait),
+                    "resultat": resultat if resultat else None,
+                }
+            else:
+                result[key] = {"fait": None, "resultat": None}
+        
+        return result
+    
+    def grouped_fields(self):
+        """Regroupe les champs par sérologie pour l'affichage."""
+        groups = []
+        for key, label in self.SEROLOGIE_KEYS:
+            groups.append({
+                "key": key,
+                "label": label,
+                "fait": self[f"{key}_fait"],
+                "resultat": self[f"{key}_resultat"],
+            })
+        return groups
+
+
+
+
+class BaseExamenAppareilForm(forms.Form):
+    """
+    Classe de base pour les sous-formulaires d'examen par appareil.
+    Gère le dépliage/repliage du JSON.
+    """
+    
+    appareil_key = None  # À définir dans les sous-classes
+    
+    def __init__(self, *args, json_data=None, **kwargs):
+        self.json_data = json_data if isinstance(json_data, dict) else {}
+        super().__init__(*args, **kwargs)
+    
+    def get_json(self):
+        """
+        Replie les données du formulaire en structure JSON.
+        À surcharger dans les sous-classes.
+        """
+        if not self.is_valid():
+            return self.json_data
+        
+        result = {}
+        for field_name in self.fields.keys():
+            value = self.cleaned_data.get(field_name)
+            
+            # Gestion des champs imbriqués (ex: inspection__frequence_respiratoire)
+            if "__" in field_name:
+                parts = field_name.split("__")
+                current = result
+                for part in parts[:-1]:
+                    if part not in current:
+                        current[part] = {}
+                    current = current[part]
+                current[parts[-1]] = value
+            else:
+                result[field_name] = value
+        
+        return result
+
+
+# ============================================================
+# LABELS DES CATÉGORIES D'EXAMEN
+# ============================================================
+
+CATEGORY_LABELS = {
+    "inspection": "▸ Inspection",
+    "palpation": "▸ Palpation",
+    "percussion": "▸ Percussion",
+    "auscultation": "▸ Auscultation",
+    "emission": "▸ Émission",
+    "reflexes": "▸ Réflexes",
+    "fille": "👧 Chez la fille",
+    "garcon": "👦 Chez le garçon",
+    "general": "Général",
+}
+
+
+# ============================================================
+# CLASSE DE BASE POUR LES EXAMENS PAR APPAREIL
+# ============================================================
+
+# ============================================================
+# CLASSE DE BASE POUR LES EXAMENS PAR APPAREIL
+# ============================================================
+
+class BaseExamenAppareilForm(forms.Form):
+    """
+    Classe de base pour les sous-formulaires d'examen par appareil.
+    Gère :
+    - le dépliage/repliage du JSON
+    - le pré-remplissage depuis le JSON existant
+    - le groupement des champs par catégorie pour le template
+    """
+
+    appareil_key = None
+
+    CATEGORY_LABELS = {
+        "inspection": "▸ Inspection",
+        "palpation": "▸ Palpation",
+        "percussion": "▸ Percussion",
+        "auscultation": "▸ Auscultation",
+        "emission": "▸ Émission",
+        "reflexes": "▸ Réflexes",
+        "fille": "👧 Chez la fille",
+        "garcon": "👦 Chez le garçon",
+        "general": "Général",
+    }
+
+    def __init__(self, *args, json_data=None, **kwargs):
+        self.json_data = json_data if isinstance(json_data, dict) else {}
+        super().__init__(*args, **kwargs)
+        self._load_initial_data()
+
+    def _get_nested_value(self, data, field_name):
+        """
+        Récupère une valeur imbriquée dans le JSON.
+        Exemple : inspection__frequence_respiratoire
+        """
+        if "__" in field_name:
+            current = data
+            for part in field_name.split("__"):
+                if not isinstance(current, dict):
+                    return None
+                current = current.get(part)
+            return current
+
+        return data.get(field_name)
+
+    def _load_initial_data(self):
+        """
+        Pré-remplit les champs du formulaire avec les données JSON existantes.
+        """
+        for field_name, field in self.fields.items():
+            value = self._get_nested_value(self.json_data, field_name)
+
+            if value is not None:
+                field.initial = value
+
+    def get_json(self):
+        """
+        Replie les données du formulaire en structure JSON.
+        """
+        if not self.is_valid():
+            return self.json_data
+
+        result = {}
+
+        for field_name in self.fields.keys():
+            value = self.cleaned_data.get(field_name)
+
+            if "__" in field_name:
+                parts = field_name.split("__")
+                current = result
+
+                for part in parts[:-1]:
+                    if part not in current:
+                        current[part] = {}
+                    current = current[part]
+
+                current[parts[-1]] = value
+            else:
+                result[field_name] = value
+
+        return result
+
+    def get_categories(self):
+        """
+        Retourne les champs visibles groupés par catégorie.
+
+        Format retourné :
+        [
+            ("▸ Inspection", [bound_field1, bound_field2, ...]),
+            ("▸ Palpation", [bound_field3, ...]),
+            ...
+        ]
+        """
+        categories = {}
+        order = []
+
+        for bound_field in self.visible_fields():
+            field_name = bound_field.name
+
+            if "__" in field_name:
+                category_key = field_name.split("__")[0]
+            else:
+                category_key = "general"
+
+            if category_key not in categories:
+                categories[category_key] = []
+                order.append(category_key)
+
+            categories[category_key].append(bound_field)
+
+        return [
+            (
+                self.CATEGORY_LABELS.get(category_key, category_key.title()),
+                categories[category_key],
+            )
+            for category_key in order
+        ]
+
+# ============================================================
+# APPAREIL PLEUROPULMONAIRE
+# ============================================================
+
+class PleuropulmonaireForm(BaseExamenAppareilForm):
+    """Sous-formulaire pour l'appareil pleuropulmonaire."""
+    
+    appareil_key = "pleuropulmonaire"
+    
+    # Inspection
+    inspection__frequence_respiratoire = forms.IntegerField(
+        required=False,
+        label="Fréquence respiratoire (cpm)",
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+    )
+    
+    inspection__type_respiration = forms.ChoiceField(
+        choices=[("", "---")] + C.TYPE_RESPIRATION_CHOICES,
+        required=False,
+        label="Type de respiration",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__amplitude_thoracique = forms.ChoiceField(
+        choices=[("", "---")] + C.AMPLITUDE_THORACIQUE_CHOICES,
+        required=False,
+        label="Amplitude thoracique",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__symetrie_thoracique = forms.ChoiceField(
+        choices=[("", "---")] + C.SYMETRIE_THORACIQUE_CHOICES,
+        required=False,
+        label="Symétrie thoracique",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__signes_de_lutte = forms.MultipleChoiceField(
+        choices=C.SIGNES_LUTTE_CHOICES,
+        required=False,
+        label="Signes de lutte",
+        widget=forms.CheckboxSelectMultiple,
+    )
+    
+    inspection__turgescence_jugulaire = forms.ChoiceField(
+        choices=[("", "---")] + C.ABSENTE_PRESENTE_CHOICES,
+        required=False,
+        label="Turgescence jugulaire",
+        widget=forms.RadioSelect,
+    )
+    
+    inspection__deformation_thoracique = forms.ChoiceField(
+        choices=[("", "---")] + C.DEFORMATION_THORACIQUE_CHOICES,
+        required=False,
+        label="Déformation thoracique",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    # Palpation
+    palpation__vibrations_vocales = forms.ChoiceField(
+        choices=[("", "---")] + C.VIBRATIONS_VOCALES_CHOICES,
+        required=False,
+        label="Vibrations vocales",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    palpation__expansion_thoracique = forms.ChoiceField(
+        choices=[("", "---")] + C.EXPANSION_THORACIQUE_CHOICES,
+        required=False,
+        label="Expansion thoracique",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    palpation__douleur_palpation = forms.ChoiceField(
+        choices=[("", "---")] + C.ABSENTE_PRESENTE_CHOICES,
+        required=False,
+        label="Douleur à la palpation",
+        widget=forms.RadioSelect,
+    )
+    
+    palpation__crepitations_sous_cutanees = forms.ChoiceField(
+        choices=[("", "---")] + C.ABSENTE_PRESENTE_CHOICES,
+        required=False,
+        label="Crépitations sous-cutanées",
+        widget=forms.RadioSelect,
+    )
+    
+    # Percussion
+    percussion__sonorite_globale = forms.ChoiceField(
+        choices=[("", "---")] + C.SONORITE_PULMONAIRE_CHOICES,
+        required=False,
+        label="Sonorité globale",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    percussion__localisation_anormale = forms.ChoiceField(
+        choices=[("", "---")] + C.LOCALISATION_PULMONAIRE_CHOICES,
+        required=False,
+        label="Localisation anormale",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    percussion__mobilite_bord_inferieur_poumon = forms.ChoiceField(
+        choices=[("", "---")] + C.MOBILITE_BORD_INFERIEUR_POUMON_CHOICES,
+        required=False,
+        label="Mobilité bord inférieur poumon",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    # Auscultation
+    auscultation__murmure_vesiculaire = forms.ChoiceField(
+        choices=[("", "---")] + C.MURMURE_VESICULAIRE_CHOICES,
+        required=False,
+        label="Murmure vésiculaire",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    auscultation__rales_crepitants = forms.ChoiceField(
+        choices=[("", "---")] + C.RALES_CREPITANTS_CHOICES,
+        required=False,
+        label="Râles crépitants",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    auscultation__rales_sous_crepitants = forms.ChoiceField(
+        choices=[("", "---")] + C.RALES_SOUS_CREPITANTS_CHOICES,
+        required=False,
+        label="Râles sous-crépitants",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    auscultation__sibilances = forms.MultipleChoiceField(
+        choices=C.SIBILANCES_CHOICES,
+        required=False,
+        label="Sibilances / Wheezing",
+        widget=forms.CheckboxSelectMultiple,
+    )
+    
+    auscultation__rales_ronflants = forms.ChoiceField(
+        choices=[("", "---")] + C.RALES_RONFLANTS_CHOICES,
+        required=False,
+        label="Râles ronflants",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    auscultation__souffle_tubaire = forms.ChoiceField(
+        choices=[("", "---")] + C.SOUFFLE_TUBAIRE_CHOICES,
+        required=False,
+        label="Souffle tubaire",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    auscultation__frottement_pleural = forms.ChoiceField(
+        choices=[("", "---")] + C.FROTTEMENT_PLEURAL_CHOICES,
+        required=False,
+        label="Frottement pleural",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    auscultation__localisation_anomalies = forms.MultipleChoiceField(
+        choices=C.LOCALISATION_PULMONAIRE_CHOICES,
+        required=False,
+        label="Localisation anomalies",
+        widget=forms.CheckboxSelectMultiple,
+    )
+    
+    # Textes libres
+    exceptions = forms.CharField(
+        required=False,
+        label="Autres précisions",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+    
+    conclusion = forms.CharField(
+        required=False,
+        label="Conclusion pleuropulmonaire",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+
+
+# ============================================================
+# APPAREIL CARDIOVASCULAIRE
+# ============================================================
+
+class CardiovasculaireForm(BaseExamenAppareilForm):
+    """Sous-formulaire pour l'appareil cardiovasculaire."""
+    
+    appareil_key = "cardiovasculaire"
+    
+    # Inspection
+    inspection__cyanose = forms.ChoiceField(
+        choices=[("", "---")] + C.CYANOSE_CHOICES,
+        required=False,
+        label="Cyanose",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__paleur = forms.ChoiceField(
+        choices=[("", "---")] + C.PALEUR_CHOICES,
+        required=False,
+        label="Pâleur",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__ictere = forms.ChoiceField(
+        choices=[("", "---")] + C.ABSENT_PRESENT_CHOICES,
+        required=False,
+        label="Ictère",
+        widget=forms.RadioSelect,
+    )
+    
+    inspection__oedemes = forms.ChoiceField(
+        choices=[("", "---")] + C.OEDEMES_CHOICES,
+        required=False,
+        label="Œdèmes",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__turgescence_jugulaire = forms.ChoiceField(
+        choices=[("", "---")] + C.ABSENTE_PRESENTE_CHOICES,
+        required=False,
+        label="Turgescence jugulaire",
+        widget=forms.RadioSelect,
+    )
+    
+    inspection__hippocratisme_digital = forms.ChoiceField(
+        choices=[("", "---")] + C.HIPPOCRATISME_DIGITAL_CHOICES,
+        required=False,
+        label="Hippocratisme digital",
+        widget=forms.RadioSelect,
+    )
+    
+    # Palpation
+    palpation__frequence_cardiaque = forms.IntegerField(
+        required=False,
+        label="Fréquence cardiaque (bpm)",
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+    )
+    
+    palpation__choc_de_pointe = forms.ChoiceField(
+        choices=[("", "---")] + C.CHOC_DE_POINTE_CHOICES,
+        required=False,
+        label="Choc de pointe",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    palpation__rythme = forms.ChoiceField(
+        choices=[("", "---")] + C.RYTHME_CARDIAQUE_CHOICES,
+        required=False,
+        label="Rythme",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    palpation__thrill = forms.ChoiceField(
+        choices=[("", "---")] + C.ABSENT_PRESENT_CHOICES,
+        required=False,
+        label="Thrill (frémissement)",
+        widget=forms.RadioSelect,
+    )
+    
+    palpation__chaleur_extremites = forms.ChoiceField(
+        choices=[("", "---")] + C.CHALEUR_EXTREMITES_CHOICES,
+        required=False,
+        label="Chaleur des extrémités",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    palpation__trc_secondes = forms.IntegerField(
+        required=False,
+        label="TRC (secondes)",
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+    )
+    
+    palpation__pouls_peripheriques = forms.ChoiceField(
+        choices=[("", "---")] + C.POULS_PERIPHERIQUES_CHOICES,
+        required=False,
+        label="Pouls périphériques",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    palpation__pouls_femoraux = forms.ChoiceField(
+        choices=[("", "---")] + C.POULS_FEMORAUX_CHOICES,
+        required=False,
+        label="Pouls fémoraux",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    # Percussion
+    percussion__matite_cardiaque = forms.ChoiceField(
+        choices=[("", "---")] + C.MATITE_CARDIAQUE_CHOICES,
+        required=False,
+        label="Matité cardiaque",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    # Auscultation
+    auscultation__bdc = forms.ChoiceField(
+        choices=[("", "---")] + C.BDC_CHOICES,
+        required=False,
+        label="BDC (Bruits du Cœur)",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    auscultation__souffle_cardiaque = forms.ChoiceField(
+        choices=[("", "---")] + C.SOUFFLE_CARDIAQUE_CHOICES,
+        required=False,
+        label="Souffle cardiaque",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    auscultation__intensite_souffle_levine = forms.ChoiceField(
+        choices=[("", "---")] + C.LEVINE_CHOICES,
+        required=False,
+        label="Intensité souffle (Levine)",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    auscultation__localisation_souffle = forms.ChoiceField(
+        choices=[("", "---")] + C.LOCALISATION_SOUFFLE_CHOICES,
+        required=False,
+        label="Localisation souffle",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    auscultation__bruits_surajoutes = forms.ChoiceField(
+        choices=[("", "---")] + C.BRUITS_SURAJOUTES_CHOICES,
+        required=False,
+        label="Bruits surajoutés",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    auscultation__dedoublement = forms.ChoiceField(
+        choices=[("", "---")] + C.DEDOUBLEMENT_CHOICES,
+        required=False,
+        label="Dédoublement",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    # Textes libres
+    exceptions = forms.CharField(
+        required=False,
+        label="Autres précisions",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+    
+    conclusion = forms.CharField(
+        required=False,
+        label="Conclusion cardiovasculaire",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+
+
+# ============================================================
+# APPAREIL DIGESTIF
+# ============================================================
+
+class DigestifForm(BaseExamenAppareilForm):
+    """Sous-formulaire pour l'appareil digestif."""
+    
+    appareil_key = "digestif"
+    
+    # Inspection
+    inspection__volume_abdominal = forms.ChoiceField(
+        choices=[("", "---")] + C.VOLUME_ABDOMINAL_CHOICES,
+        required=False,
+        label="Volume abdominal",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__voussures = forms.ChoiceField(
+        choices=[("", "---")] + C.VOUSSURES_CHOICES,
+        required=False,
+        label="Voussures",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__circulation_collaterale = forms.ChoiceField(
+        choices=[("", "---")] + C.CIRCULATION_COLLATERALE_CHOICES,
+        required=False,
+        label="Circulation collatérale",
+        widget=forms.RadioSelect,
+    )
+    
+    inspection__ombilic = forms.ChoiceField(
+        choices=[("", "---")] + C.OMBILIC_CHOICES,
+        required=False,
+        label="Ombilic",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    # Palpation
+    palpation__souplesse_abdominale = forms.ChoiceField(
+        choices=[("", "---")] + C.SOUPLESSE_ABDOMINALE_CHOICES,
+        required=False,
+        label="Souplesse abdominale",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    palpation__douleur = forms.ChoiceField(
+        choices=[("", "---")] + C.DOULEUR_ABDOMINALE_CHOICES,
+        required=False,
+        label="Douleur",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    palpation__localisation_douleur = forms.CharField(
+        required=False,
+        label="Localisation douleur (si localisée)",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    
+    palpation__signe_de_murphy = forms.ChoiceField(
+        choices=[("", "---")] + C.SIGNE_MURPHY_CHOICES,
+        required=False,
+        label="Signe de Murphy",
+        widget=forms.RadioSelect,
+    )
+    
+    palpation__point_de_mcburney = forms.ChoiceField(
+        choices=[("", "---")] + C.POINT_MCBURNEY_CHOICES,
+        required=False,
+        label="Point de McBurney",
+        widget=forms.RadioSelect,
+    )
+    
+    palpation__hepatomegalie = forms.ChoiceField(
+        choices=[("", "---")] + C.HEPATOMEGALIE_CHOICES,
+        required=False,
+        label="Hépatomégalie",
+        widget=forms.RadioSelect,
+    )
+    
+    palpation__taille_hepatomegalie_cm = forms.DecimalField(
+        required=False,
+        label="Taille hépatomégalie (cm)",
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": 0, "step": "0.1"}),
+    )
+    
+    palpation__splenomegalie = forms.ChoiceField(
+        choices=[("", "---")] + C.SPLENOMEGALIE_CHOICES,
+        required=False,
+        label="Splénomégalie",
+        widget=forms.RadioSelect,
+    )
+    
+    palpation__taille_splenomegalie_cm = forms.DecimalField(
+        required=False,
+        label="Taille splénomégalie (cm)",
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": 0, "step": "0.1"}),
+    )
+    
+    palpation__masse_palpable = forms.ChoiceField(
+        choices=[("", "---")] + C.MASSE_PALPABLE_CHOICES,
+        required=False,
+        label="Masse palpable",
+        widget=forms.RadioSelect,
+    )
+    
+    palpation__localisation_masse = forms.CharField(
+        required=False,
+        label="Localisation masse",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    
+    palpation__globe_vesical = forms.ChoiceField(
+        choices=[("", "---")] + C.GLOBE_VESICAL_CHOICES,
+        required=False,
+        label="Globe vésical",
+        widget=forms.RadioSelect,
+    )
+    
+    palpation__pli_cutane = forms.ChoiceField(
+        choices=[("", "---")] + C.PLI_CUTANE_CHOICES,
+        required=False,
+        label="Pli cutané (déshydratation)",
+        widget=forms.RadioSelect,
+    )
+    
+    # Percussion
+    percussion__sonorite_abdominale = forms.ChoiceField(
+        choices=[("", "---")] + C.SONORITE_ABDOMINALE_CHOICES,
+        required=False,
+        label="Sonorité abdominale",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    percussion__matite_hepatique = forms.ChoiceField(
+        choices=[("", "---")] + C.MATITE_HEPATIQUE_CHOICES,
+        required=False,
+        label="Matité hépatique",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    percussion__matite_declive = forms.ChoiceField(
+        choices=[("", "---")] + C.MATITE_DECLIVE_CHOICES,
+        required=False,
+        label="Matité déclive",
+        widget=forms.RadioSelect,
+    )
+    
+    # Auscultation
+    auscultation__bruits_hydro_aeriques = forms.ChoiceField(
+        choices=[("", "---")] + C.BRUITS_HYDRO_AERIQUES_CHOICES,
+        required=False,
+        label="Bruits hydro-aériques",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    auscultation__souffle_vasculaire = forms.ChoiceField(
+        choices=[("", "---")] + C.SOUFFLE_VASCULAIRE_CHOICES,
+        required=False,
+        label="Souffle vasculaire",
+        widget=forms.RadioSelect,
+    )
+    
+    # Émission
+    emission__selles = forms.MultipleChoiceField(
+        choices=C.SELLES_CHOICES,
+        required=False,
+        label="Selles",
+        widget=forms.CheckboxSelectMultiple,
+    )
+    
+    emission__vomissements = forms.MultipleChoiceField(
+        choices=C.VOMISSEMENTS_CHOICES,
+        required=False,
+        label="Vomissements",
+        widget=forms.CheckboxSelectMultiple,
+    )
+    
+    emission__emission_meconium = forms.ChoiceField(
+        choices=[("", "---")] + C.MECONIUM_CHOICES,
+        required=False,
+        label="Émission de méconium",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    emission__autres_precisions = forms.CharField(
+        required=False,
+        label="Autres précisions",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+    
+    # Textes libres
+    exceptions = forms.CharField(
+        required=False,
+        label="Autres précisions",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+    
+    conclusion = forms.CharField(
+        required=False,
+        label="Conclusion digestive",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+
+
+# ============================================================
+# APPAREIL NEUROLOGIQUE
+# ============================================================
+
+class NeurologiqueForm(BaseExamenAppareilForm):
+    """Sous-formulaire pour l'appareil neurologique."""
+    
+    appareil_key = "neurologique"
+    
+    # Inspection
+    inspection__etat_de_conscience = forms.ChoiceField(
+        choices=[("", "---")] + C.ETAT_CONSCIENCE_CHOICES,
+        required=False,
+        label="État de conscience",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__score_glasgow = forms.IntegerField(
+        required=False,
+        label="Score de Glasgow (3-15)",
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": 3, "max": 15}),
+    )
+    
+    inspection__score_blantyre = forms.IntegerField(
+        required=False,
+        label="Score de Blantyre (0-5)",
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": 0, "max": 5}),
+    )
+    
+    inspection__mouvements_anormaux = forms.MultipleChoiceField(
+        choices=C.MOUVEMENTS_ANORMAUX_CHOICES,
+        required=False,
+        label="Mouvements anormaux",
+        widget=forms.CheckboxSelectMultiple,
+    )
+    
+    inspection__attitude_posture = forms.ChoiceField(
+        choices=[("", "---")] + C.ATTITUDE_POSTURE_CHOICES,
+        required=False,
+        label="Attitude / Posture",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__pupilles = forms.ChoiceField(
+        choices=[("", "---")] + C.PUPILLES_CHOICES,
+        required=False,
+        label="Pupilles",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    # Palpation
+    palpation__fontanelle = forms.ChoiceField(
+        choices=[("", "---")] + C.FONTANELLE_CHOICES,
+        required=False,
+        label="Fontanelle",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    palpation__permeabilite_sutures = forms.CharField(
+        required=False,
+        label="Perméabilité sutures (travers de doigt)",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    
+    palpation__raideur_nuque = forms.ChoiceField(
+        choices=[("", "---")] + C.RAIDEUR_NUQUE_CHOICES,
+        required=False,
+        label="Raideur de nuque",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    palpation__signe_kernig_bragard = forms.ChoiceField(
+        choices=[("", "---")] + C.KERNIG_BRAGARD_CHOICES,
+        required=False,
+        label="Signe de Kernig/Bragard",
+        widget=forms.RadioSelect,
+    )
+    
+    palpation__ton_musculaire = forms.ChoiceField(
+        choices=[("", "---")] + C.TON_MUSCULAIRE_CHOICES,
+        required=False,
+        label="Ton musculaire",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    palpation__force_musculaire = forms.ChoiceField(
+        choices=[("", "---")] + C.FORCE_MUSCULAIRE_CHOICES,
+        required=False,
+        label="Force musculaire",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    palpation__sensibilite = forms.ChoiceField(
+        choices=[("", "---")] + C.SENSIBILITE_CHOICES,
+        required=False,
+        label="Sensibilité",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    # Réflexes
+    reflexes__reflexes_osteo_tendineux = forms.ChoiceField(
+        choices=[("", "---")] + C.REFLEXES_OSTEO_TENDINEUX_CHOICES,
+        required=False,
+        label="Réflexes ostéo-tendineux",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    reflexes__babinski = forms.ChoiceField(
+        choices=[("", "---")] + C.BABINSKI_CHOICES,
+        required=False,
+        label="Signe de Babinski",
+        widget=forms.RadioSelect,
+    )
+    
+    reflexes__reflexes_archaiques = forms.MultipleChoiceField(
+        choices=C.REFLEXES_ARCHEAQUES_CHOICES,
+        required=False,
+        label="Réflexes archaïques",
+        widget=forms.CheckboxSelectMultiple,
+    )
+    
+    # Textes libres
+    exceptions = forms.CharField(
+        required=False,
+        label="Autres précisions",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+    
+    conclusion = forms.CharField(
+        required=False,
+        label="Conclusion neurologique",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+
+
+# ============================================================
+# SPHÈRE ORL (TÊTE ET COU)
+# ============================================================
+
+class ORLForm(BaseExamenAppareilForm):
+    """Sous-formulaire pour la sphère ORL (tête et cou)."""
+    
+    appareil_key = "orl"
+    
+    # Inspection
+    inspection__pc_cm = forms.DecimalField(
+        required=False,
+        label="PC (cm)",
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": 0, "step": "0.1"}),
+    )
+    
+    inspection__dysmorphie_faciale = forms.ChoiceField(
+        choices=[("", "---")] + C.DYSMORPHIE_FACIALE_CHOICES,
+        required=False,
+        label="Dysmorphie faciale",
+        widget=forms.RadioSelect,
+    )
+    
+    inspection__type_dysmorphie = forms.CharField(
+        required=False,
+        label="Type dysmorphie (si présente)",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    
+    inspection__yeux = forms.MultipleChoiceField(
+        choices=C.YEUX_CHOICES,
+        required=False,
+        label="Yeux",
+        widget=forms.CheckboxSelectMultiple,
+    )
+    
+    inspection__nez = forms.MultipleChoiceField(
+        choices=C.NEZ_CHOICES,
+        required=False,
+        label="Nez",
+        widget=forms.CheckboxSelectMultiple,
+    )
+    
+    inspection__oreilles = forms.MultipleChoiceField(
+        choices=C.OREILLES_CHOICES,
+        required=False,
+        label="Oreilles",
+        widget=forms.CheckboxSelectMultiple,
+    )
+    
+    inspection__levres = forms.ChoiceField(
+        choices=[("", "---")] + C.LEVRES_CHOICES,
+        required=False,
+        label="Lèvres",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__muqueuse_buccale = forms.MultipleChoiceField(
+        choices=C.MUQUEUSE_BUCCALE_CHOICES,
+        required=False,
+        label="Muqueuse buccale",
+        widget=forms.CheckboxSelectMultiple,
+    )
+    
+    inspection__langue = forms.ChoiceField(
+        choices=[("", "---")] + C.LANGUE_CHOICES,
+        required=False,
+        label="Langue",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__amygdales = forms.ChoiceField(
+        choices=[("", "---")] + C.AMYgDALES_CHOICES,
+        required=False,
+        label="Amygdales",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__fente_bec_lievre = forms.ChoiceField(
+        choices=[("", "---")] + C.FENTE_CHOICES,
+        required=False,
+        label="Fente / Bec de lièvre",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__frein_langue = forms.ChoiceField(
+        choices=[("", "---")] + C.FREIN_LANGUE_CHOICES,
+        required=False,
+        label="Frein de langue",
+        widget=forms.RadioSelect,
+    )
+    
+    inspection__cou_mobilite = forms.ChoiceField(
+        choices=[("", "---")] + C.COU_MOBILITE_CHOICES,
+        required=False,
+        label="Cou - Mobilité",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__adenopathies_cervicales = forms.ChoiceField(
+        choices=[("", "---")] + C.ADENOPATHIES_CERVICALES_CHOICES,
+        required=False,
+        label="Adénopathies cervicales",
+        widget=forms.RadioSelect,
+    )
+    
+    inspection__hematome_scm = forms.ChoiceField(
+        choices=[("", "---")] + C.HEMATOME_SCM_CHOICES,
+        required=False,
+        label="Hématome SCM",
+        widget=forms.RadioSelect,
+    )
+    
+    # Palpation
+    palpation__ganglions_cervicaux = forms.MultipleChoiceField(
+        choices=C.GANGLIONS_CERVICAUX_CHOICES,
+        required=False,
+        label="Ganglions cervicaux",
+        widget=forms.CheckboxSelectMultiple,
+    )
+    
+    palpation__masse_cervicale = forms.ChoiceField(
+        choices=[("", "---")] + C.MASSE_CERVICALE_CHOICES,
+        required=False,
+        label="Masse cervicale",
+        widget=forms.RadioSelect,
+    )
+    
+    palpation__thyroide = forms.ChoiceField(
+        choices=[("", "---")] + C.THYROIDE_CHOICES,
+        required=False,
+        label="Thyroïde",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    # Textes libres
+    exceptions = forms.CharField(
+        required=False,
+        label="Autres précisions",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+    
+    conclusion = forms.CharField(
+        required=False,
+        label="Conclusion ORL",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+
+
+# ============================================================
+# REVÊTEMENT CUTANÉOMUQUEUX
+# ============================================================
+
+class CutaneomuqueuxForm(BaseExamenAppareilForm):
+    """Sous-formulaire pour le revêtement cutanéomuqueux."""
+    
+    appareil_key = "cutaneomuqueux"
+    
+    # Inspection
+    inspection__coloration = forms.MultipleChoiceField(
+        choices=C.COLORATION_CUTANEE_CHOICES,
+        required=False,
+        label="Coloration",
+        widget=forms.CheckboxSelectMultiple,
+    )
+    
+    inspection__hydratation = forms.ChoiceField(
+        choices=[("", "---")] + C.HYDRATATION_CHOICES,
+        required=False,
+        label="Hydratation",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    inspection__turgor_cutane = forms.ChoiceField(
+        choices=[("", "---")] + C.TURGOR_CUTANE_CHOICES,
+        required=False,
+        label="Turgor cutané",
+        widget=forms.RadioSelect,
+    )
+    
+    inspection__eruption_exantheme = forms.MultipleChoiceField(
+        choices=C.ERUPTION_CHOICES,
+        required=False,
+        label="Éruption / Exanthème",
+        widget=forms.CheckboxSelectMultiple,
+    )
+    
+    inspection__desquamation = forms.ChoiceField(
+        choices=[("", "---")] + C.DESQUAMATION_CHOICES,
+        required=False,
+        label="Desquamation",
+        widget=forms.RadioSelect,
+    )
+    
+    inspection__purpura = forms.ChoiceField(
+        choices=[("", "---")] + C.PURPURA_CHOICES,
+        required=False,
+        label="Purpura",
+        widget=forms.RadioSelect,
+    )
+    
+    inspection__petechies = forms.ChoiceField(
+        choices=[("", "---")] + C.PETECHIES_CHOICES,
+        required=False,
+        label="Pétéchies",
+        widget=forms.RadioSelect,
+    )
+    
+    inspection__syndrome_hemorragique = forms.ChoiceField(
+        choices=[("", "---")] + C.SYNDROME_HEMORRAGIQUE_CHOICES,
+        required=False,
+        label="Syndrome hémorragique",
+        widget=forms.RadioSelect,
+    )
+    
+    inspection__oedemes = forms.ChoiceField(
+        choices=[("", "---")] + C.OEDEMES_CHOICES,
+        required=False,
+        label="Œdèmes",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    # Palpation
+    palpation__temperature_cutanee = forms.ChoiceField(
+        choices=[("", "---")] + C.TEMPERATURE_CUTANEE_CHOICES,
+        required=False,
+        label="Température cutanée",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    palpation__texture = forms.ChoiceField(
+        choices=[("", "---")] + C.TEXTURE_CUTANEE_CHOICES,
+        required=False,
+        label="Texture",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    # Textes libres
+    exceptions = forms.CharField(
+        required=False,
+        label="Autres précisions",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+    
+    conclusion = forms.CharField(
+        required=False,
+        label="Conclusion cutanéomuqueux",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+
+
+# ============================================================
+# APPAREILS GÉNITAUX
+# ============================================================
+
+class GenitauxForm(BaseExamenAppareilForm):
+    """Sous-formulaire pour les appareils génitaux."""
+    
+    appareil_key = "genitaux"
+    
+    # Chez la fille
+    fille__petite_levre_clitoris = forms.CharField(
+        required=False,
+        label="Petite lèvre et clitoris",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    
+    fille__grande_levre = forms.CharField(
+        required=False,
+        label="Grande lèvre",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    
+    fille__orifices_verifies = forms.ChoiceField(
+        choices=[("", "---")] + [(str(v), l) for v, l in C.OUI_NON_CHOICES],
+        required=False,
+        label="Orifices vérifiés",
+        widget=forms.RadioSelect,
+    )
+    
+    fille__secretion_vaginale_metrorragie = forms.ChoiceField(
+        choices=[("", "---")] + [(str(v), l) for v, l in C.OUI_NON_CHOICES],
+        required=False,
+        label="Sécrétion vaginale / métrorragie",
+        widget=forms.RadioSelect,
+    )
+    
+    # Chez le garçon
+    garcon__scrotum = forms.CharField(
+        required=False,
+        label="Scrotum",
+        widget=forms.TextInput(attrs={"class": "form-control"}),
+    )
+    
+    garcon__presence_testicules = forms.ChoiceField(
+        choices=[("", "---")] + [(str(v), l) for v, l in C.OUI_NON_CHOICES],
+        required=False,
+        label="Présence testicules",
+        widget=forms.RadioSelect,
+    )
+    
+    garcon__mar = forms.ChoiceField(
+        choices=[("", "---")] + [(str(v), l) for v, l in C.OUI_NON_CHOICES],
+        required=False,
+        label="Absence MAR",
+        widget=forms.RadioSelect,
+    )
+    
+    garcon__hydrocele_vaginale = forms.ChoiceField(
+        choices=[("", "---")] + [(str(v), l) for v, l in C.OUI_NON_CHOICES],
+        required=False,
+        label="Hydrocèle vaginale",
+        widget=forms.RadioSelect,
+    )
+    
+    # Textes libres
+    exceptions = forms.CharField(
+        required=False,
+        label="Autres précisions",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+    
+    conclusion = forms.CharField(
+        required=False,
+        label="Conclusion génitaux",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+
+
+# ============================================================
+# APPAREIL OSTÉO-ARTICULAIRE
+# ============================================================
+
+class OsteoarticulaireForm(BaseExamenAppareilForm):
+    """Sous-formulaire pour l'appareil ostéo-articulaire."""
+    
+    appareil_key = "osteoarticulaire"
+    
+    # Champs directs (pas de catégorie)
+    ms = forms.CharField(
+        required=False,
+        label="MS (lésions, doigts, pli palmaire)",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+    
+    mi = forms.CharField(
+        required=False,
+        label="MI (orteils, malposition)",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+    
+    rachis = forms.CharField(
+        required=False,
+        label="Rachis (malformations)",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+    
+    hanche_lch = forms.ChoiceField(
+        choices=[("", "---")] + C.HANCHE_LCH_CHOICES,
+        required=False,
+        label="Hanche (Recherche LCH)",
+        widget=forms.RadioSelect,
+    )
+    
+    # Textes libres
+    exceptions = forms.CharField(
+        required=False,
+        label="Autres précisions",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+    
+    conclusion = forms.CharField(
+        required=False,
+        label="Conclusion ostéo-articulaire",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+
+
+# ============================================================
+# LISTE DE TOUS LES SOUS-FORMULAIRES D'EXAMEN
+# ============================================================
+
+EXAM_SUBFORMS = [
+    ("pleuropulmonaire", PleuropulmonaireForm, "Appareil pleuropulmonaire"),
+    ("cardiovasculaire", CardiovasculaireForm, "Appareil cardiovasculaire"),
+    ("digestif", DigestifForm, "Appareil digestif"),
+    ("neurologique", NeurologiqueForm, "Appareil neurologique"),
+    ("orl", ORLForm, "Sphère ORL (Tête et Cou)"),
+    ("cutaneomuqueux", CutaneomuqueuxForm, "Revêtement cutanéomuqueux"),
+    ("genitaux", GenitauxForm, "Appareils génitaux"),
+    ("osteoarticulaire", OsteoarticulaireForm, "Appareil ostéo-articulaire"),
+]
 
 

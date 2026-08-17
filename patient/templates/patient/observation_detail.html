@@ -1,156 +1,1486 @@
 {% extends "patient/base.html" %}
 
 {% block title %}
-    Observation {{ observation.pk }}
+    {{ observation.nom }} {{ observation.prenoms }} - Dossier patient
 {% endblock %}
 
 {% block content %}
-    <div class="page-header">
-        <h1>
-            {{ observation.nom }} {{ observation.prenoms }}
-        </h1>
+<style>
+    /* ================================================ */
+    /* PATIENT DASHBOARD */
+    /* ================================================ */
 
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <a href="{% url 'patient:observation_update' observation.pk %}" class="btn btn-primary">
-                Modifier
-            </a>
+    .patient-header {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+        border-radius: 16px;
+        padding: 28px 32px;
+        color: #fff;
+        margin-bottom: 24px;
+        position: relative;
+        overflow: hidden;
+    }
 
-            <a href="{% url 'patient:observation_generate_docx' observation.pk %}" class="btn btn-secondary">
-                Générer DOCX
-            </a>
+    .patient-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 400px;
+        height: 400px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 50%;
+    }
 
-            <form method="post" action="{% url 'patient:observation_delete' observation.pk %}" onsubmit="return confirm('Supprimer cette observation ?');">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-danger">
-                    Supprimer
-                </button>
-            </form>
+    .patient-header-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        position: relative;
+        z-index: 1;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    .patient-identity {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .patient-avatar {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        border: 3px solid rgba(255,255,255,0.3);
+    }
+
+    .patient-name {
+        font-size: 24px;
+        font-weight: 800;
+        margin: 0;
+    }
+
+    .patient-meta {
+        display: flex;
+        gap: 12px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+    }
+
+    .patient-meta-item {
+        background: rgba(255,255,255,0.12);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .patient-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .patient-actions .btn {
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: #fff;
+        padding: 8px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .patient-actions .btn:hover {
+        background: rgba(255,255,255,0.25);
+    }
+
+    .patient-actions .btn-primary-action {
+        background: #fff;
+        color: #1e3a5f;
+    }
+
+    /* ================================================ */
+    /* QUICK STATS */
+    /* ================================================ */
+
+    .quick-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .quick-stat-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 18px;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .quick-stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+    }
+
+    .quick-stat-icon.blue { background: #dbeafe; }
+    .quick-stat-icon.green { background: #dcfce7; }
+    .quick-stat-icon.orange { background: #ffedd5; }
+    .quick-stat-icon.cyan { background: #cffafe; }
+
+    .quick-stat-info .value {
+        font-size: 22px;
+        font-weight: 800;
+        color: #1e293b;
+    }
+
+    .quick-stat-info .label {
+        font-size: 12px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .quick-stat-info .sub {
+        font-size: 11px;
+        color: #94a3b8;
+        margin-top: 2px;
+    }
+
+    /* ================================================ */
+    /* TABS NAVIGATION */
+    /* ================================================ */
+
+    .dashboard-tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 2px solid #e2e8f0;
+        margin-bottom: 24px;
+        overflow-x: auto;
+        padding-bottom: 0;
+    }
+
+    .dashboard-tab {
+        padding: 12px 20px;
+        border: none;
+        background: none;
+        font-size: 14px;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        white-space: nowrap;
+        transition: all 0.2s;
+    }
+
+    .dashboard-tab:hover {
+        color: #2563eb;
+    }
+
+    .dashboard-tab.active {
+        color: #2563eb;
+        border-bottom-color: #2563eb;
+    }
+
+    .tab-content-section {
+        display: none;
+    }
+
+    .tab-content-section.active {
+        display: block;
+    }
+
+    /* ================================================ */
+    /* CARDS */
+    /* ================================================ */
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+
+    .info-card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+    }
+
+    .info-card-header {
+        padding: 14px 18px;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        font-weight: 700;
+        font-size: 14px;
+        color: #334155;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .info-card-body {
+        padding: 18px;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 13px;
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-row .label {
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .info-row .value {
+        color: #1e293b;
+        font-weight: 600;
+        text-align: right;
+    }
+
+    .info-row .value.empty {
+        color: #94a3b8;
+        font-style: italic;
+        font-weight: 400;
+    }
+
+    /* ================================================ */
+    /* TIMELINE */
+    /* ================================================ */
+
+    .timeline {
+        position: relative;
+        padding-left: 24px;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 8px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e2e8f0;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+        background: #fff;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        padding: 16px;
+    }
+
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -20px;
+        top: 20px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #2563eb;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 2px #2563eb;
+    }
+
+    .timeline-item.green::before { background: #16a34a; box-shadow: 0 0 0 2px #16a34a; }
+    .timeline-item.orange::before { background: #ea580c; box-shadow: 0 0 0 2px #ea580c; }
+    .timeline-item.cyan::before { background: #0891b2; box-shadow: 0 0 0 2px #0891b2; }
+
+    .timeline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .timeline-date {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 600;
+    }
+
+    .timeline-badge {
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .timeline-badge.blue { background: #dbeafe; color: #1d4ed8; }
+    .timeline-badge.green { background: #dcfce7; color: #166534; }
+    .timeline-badge.orange { background: #ffedd5; color: #9a3412; }
+
+    .timeline-body {
+        font-size: 13px;
+        color: #475569;
+    }
+
+    .timeline-body .detail-row {
+        padding: 4px 0;
+        display: flex;
+        gap: 8px;
+    }
+
+    .timeline-body .detail-label {
+        color: #64748b;
+        min-width: 120px;
+    }
+
+    /* ================================================ */
+    /* BADGES */
+    /* ================================================ */
+
+    .tag {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        margin: 2px;
+    }
+
+    .tag-blue { background: #dbeafe; color: #1d4ed8; }
+    .tag-green { background: #dcfce7; color: #166534; }
+    .tag-orange { background: #ffedd5; color: #9a3412; }
+    .tag-red { background: #fee2e2; color: #991b1b; }
+    .tag-purple { background: #ede9fe; color: #6d28d9; }
+    .tag-gray { background: #f1f5f9; color: #475569; }
+
+    /* ================================================ */
+    /* SECTION TITLE */
+    /* ================================================ */
+
+    .section-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .section-title .icon {
+        font-size: 20px;
+    }
+
+    /* ================================================ */
+    /* RESPONSIVE */
+    /* ================================================ */
+
+    @media (max-width: 768px) {
+        .patient-header {
+            padding: 20px;
+        }
+
+        .patient-header-content {
+            flex-direction: column;
+        }
+
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .quick-stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    /* ================================================ */
+    /* STICKY TABS - Les onglets restent visibles */
+    /* ================================================ */
+
+    .dashboard-tabs {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background: #f8fafc;
+        padding: 12px 0;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    /* Zone de contenu avec un ID pour le scroll */
+    .tab-content-wrapper {
+        scroll-margin-top: 80px; /* Compense la hauteur des onglets sticky */
+    }
+
+    /* ================================================ */
+    /* BOUTON RETOUR EN HAUT FLOTTANT */
+    /* ================================================ */
+
+    .scroll-top-btn {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        z-index: 200;
+    }
+
+    .scroll-top-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5);
+    }
+
+    .scroll-top-btn.visible {
+        display: flex;
+    }
+
+    /* ================================================ */
+    /* SMOOTH SCROLL GLOBAL */
+    /* ================================================ */
+
+    html {
+        scroll-behavior: smooth;
+    }
+</style>
+
+<!-- ================================================ -->
+<!-- PATIENT HEADER -->
+<!-- ================================================ -->
+<div class="patient-header">
+    <div class="patient-header-content">
+        <div class="patient-identity">
+            <div class="patient-avatar">
+                {% if observation.sexe == "M" %}👦{% else %}👧{% endif %}
+            </div>
+            <div>
+                <h1 class="patient-name">{{ observation.nom }} {{ observation.prenoms }}</h1>
+                <div class="patient-meta">
+                    <span class="patient-meta-item">
+                        {% if observation.type_observation == "NN" %}👶 Nouveau-né{% else %}🧒 Enfant{% endif %}
+                    </span>
+                    <span class="patient-meta-item">{{ observation.age_display }}</span>
+                    <span class="patient-meta-item">{{ observation.get_sexe_display }}</span>
+                    {% if observation.lit %}
+                        <span class="patient-meta-item">🛏 Lit {{ observation.lit }}</span>
+                    {% endif %}
+                    {% if observation.numero_dossier %}
+                        <span class="patient-meta-item">📁 {{ observation.numero_dossier }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="patient-actions">
+            <a href="{% url 'patient:observation_update' observation.pk %}" class="btn">✏️ Modifier</a>
+            <a href="{% url 'patient:examen_physique_create' observation.pk %}" class="btn">🩺 + Examen</a>
+            <a href="{% url 'patient:fiche_rehydratation_create' observation.pk %}" class="btn">💧 + Réhydratation</a>
+            <a href="{% url 'patient:observation_generate_docx' observation.pk %}" class="btn btn-primary-action">📄 DOCX</a>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================ -->
+<!-- QUICK STATS -->
+<!-- ================================================ -->
+<div class="quick-stats">
+    <div class="quick-stat-card">
+        <div class="quick-stat-icon blue">🩺</div>
+        <div class="quick-stat-info">
+            <div class="value">{{ stats.nb_examens }}</div>
+            <div class="label">Examens physiques</div>
+            {% if stats.dernier_examen %}
+                <div class="sub">Dernier : {{ stats.dernier_examen.date_heure|date:"d/m H:i" }}</div>
+            {% endif %}
         </div>
     </div>
 
-    <section class="card">
-        <h2>État civil</h2>
+    <div class="quick-stat-card">
+        <div class="quick-stat-icon cyan">💧</div>
+        <div class="quick-stat-info">
+            <div class="value">{{ stats.nb_rehydratations }}</div>
+            <div class="label">Réhydratations</div>
+            {% if stats.derniere_rehydratation %}
+                <div class="sub">Dernière : {{ stats.derniere_rehydratation.heure_debut|date:"d/m H:i" }}</div>
+            {% endif %}
+        </div>
+    </div>
 
-        <p><strong>Type :</strong> {{ observation.get_type_observation_display }}</p>
-        <p><strong>Nom :</strong> {{ observation.nom }}</p>
-        <p><strong>Prénoms :</strong> {{ observation.prenoms }}</p>
-        <p><strong>Sexe :</strong> {{ observation.get_sexe_display }}</p>
-        <p><strong>Âge :</strong> {{ observation.age_display }}</p>
-        <p><strong>Date de naissance :</strong> {{ observation.date_naissance|default:"-" }}</p>
-        <p><strong>Adresse :</strong> {{ observation.adresse|default:"-" }}</p>
-        <p><strong>Téléphone :</strong> {{ observation.telephone|default:"-" }}</p>
-        <p><strong>Lit :</strong> {{ observation.lit|default:"-" }}</p>
-        <p><strong>N° dossier :</strong> {{ observation.numero_dossier|default:"-" }}</p>
-        <p><strong>Date d'admission :</strong> {{ observation.date_admission|default:"-" }}</p>
-        <p><strong>Motif :</strong> {{ observation.motif_admission|default:"-" }}</p>
-        <p><strong>Diagnostic retenu :</strong> {{ observation.diagnostic_retenu|default:"-" }}</p>
-    </section>
+    <div class="quick-stat-card">
+        <div class="quick-stat-icon orange">💊</div>
+        <div class="quick-stat-info">
+            <div class="value">{{ stats.nb_traitements }}</div>
+            <div class="label">Traitements</div>
+            {% if dernier_traitement %}
+                <div class="sub">v{{ dernier_traitement.version }} - {{ dernier_traitement.date_heure|date:"d/m H:i" }}</div>
+            {% endif %}
+        </div>
+    </div>
 
-    {% if sections.antecedents_familiaux %}
-        <section class="card">
-            <h2>Antécédents familiaux</h2>
-            <p><strong>Rang dans la fratrie :</strong> {{ sections.antecedents_familiaux.rang_fratrie|default:"-" }}</p>
-            <p><strong>Santé ascendants :</strong> {{ sections.antecedents_familiaux.etat_sante_ascendants|default:"-" }}</p>
-            <p><strong>Santé collatéraux :</strong> {{ sections.antecedents_familiaux.etat_sante_collateraux|default:"-" }}</p>
-            <p><strong>Tares familiales :</strong> {{ sections.antecedents_familiaux.tares_familiales|default:"-" }}</p>
-        </section>
-    {% endif %}
+    <div class="quick-stat-card">
+        <div class="quick-stat-icon green">📝</div>
+        <div class="quick-stat-info">
+            <div class="value">{{ stats.nb_episodes }}</div>
+            <div class="label">Épisodes maladie</div>
+        </div>
+    </div>
+</div>
 
-    {% if sections.grossesse %}
-        <section class="card">
-            <h2>Déroulement de la grossesse</h2>
-            <p><strong>Âge de la mère :</strong> {{ sections.grossesse.age_mere|default:"-" }}</p>
-            <p><strong>GPA :</strong> {{ sections.grossesse.gpa|default:"-" }}</p>
-            <p><strong>Nombre CPN :</strong> {{ sections.grossesse.nombre_cpn|default:"-" }}</p>
-            <p><strong>Lieu CPN :</strong> {{ sections.grossesse.lieu_cpn|default:"-" }}</p>
-            <p><strong>Nombre VAT :</strong> {{ sections.grossesse.nombre_vat|default:"-" }}</p>
-            <p><strong>Conclusion :</strong> {{ sections.grossesse.get_conclusion_display|default:"-" }}</p>
-        </section>
-    {% endif %}
 
-    {% if sections.accouchement %}
-        <section class="card">
-            <h2>Déroulement de l'accouchement</h2>
-            <p><strong>Lieu :</strong> {{ sections.accouchement.lieu|default:"-" }}</p>
-            <p><strong>Terme :</strong> {{ sections.accouchement.get_terme_display|default:"-" }}</p>
-            <p><strong>Voie :</strong> {{ sections.accouchement.get_voie_display|default:"-" }}</p>
-            <p><strong>Cri immédiat :</strong> {{ sections.accouchement.get_cri_immediat_display|default:"-" }}</p>
-            <p><strong>Apgar :</strong> {{ sections.accouchement.indice_apgar|default:"-" }}</p>
-            <p><strong>Poids naissance :</strong> {{ sections.accouchement.poids_naissance_kg|default:"-" }} kg</p>
-            <p><strong>Type accouchement :</strong> {{ sections.accouchement.get_type_accouchement_display|default:"-" }}</p>
-            <p><strong>Adaptation néonatale :</strong> {{ sections.accouchement.get_adaptation_neonatale_display|default:"-" }}</p>
-        </section>
-    {% endif %}
+<!-- ================================================ -->
+<!-- TABS NAVIGATION (STICKY) -->
+<!-- ================================================ -->
+<div class="dashboard-tabs" id="main-tabs">
+    <button class="dashboard-tab active" data-tab="tab-overview">📋 Vue d'ensemble</button>
+    <button class="dashboard-tab" data-tab="tab-antecedents">👨‍👩‍👧 Antécédents</button>
+    <button class="dashboard-tab" data-tab="tab-histoire">📖 Histoire maladie</button>
+    <button class="dashboard-tab" data-tab="tab-examen">🩺 Examen clinique</button>
+    <button class="dashboard-tab" data-tab="tab-suivi">📈 Suivi hospitalier</button>
+    <button class="dashboard-tab" data-tab="tab-diagnostic">🔬 Diagnostic & Traitement</button>
+</div>
 
-    {% if sections.examen_clinique %}
-        <section class="card">
-            <h2>Examen clinique</h2>
-            <p><strong>Date :</strong> {{ sections.examen_clinique.date_examen|default:"-" }}</p>
-            <p><strong>PC :</strong> {{ sections.examen_clinique.pc_cm|default:"-" }} cm</p>
-            <p><strong>PT :</strong> {{ sections.examen_clinique.pt_cm|default:"-" }} cm</p>
-            <p><strong>Poids :</strong> {{ sections.examen_clinique.poids_kg|default:"-" }} kg</p>
-            <p><strong>Taille :</strong> {{ sections.examen_clinique.taille_cm|default:"-" }} cm</p>
-            <p><strong>Conclusion biométrie :</strong> {{ sections.examen_clinique.get_conclusion_biometrie_display|default:"-" }}</p>
-            <p><strong>Signes 3A2S :</strong> {{ sections.examen_clinique.signes_3a2s|default:"-" }}</p>
-            <p><strong>Signes fonctionnels :</strong> {{ sections.examen_clinique.signes_fonctionnels|default:"-" }}</p>
-        </section>
-    {% endif %}
+<!-- WRAPPER POUR LE SCROLL -->
+<div class="tab-content-wrapper" id="tab-content-wrapper">
 
-    {% if sections.traitement %}
-        <section class="card">
-            <h2>Traitement</h2>
-            <p><strong>But :</strong> {{ sections.traitement.but|default:"-" }}</p>
-            <p><strong>Symptomatique :</strong> {{ sections.traitement.symptomatique|default:"-" }}</p>
-            <p><strong>Étiologique :</strong> {{ sections.traitement.etiologique|default:"-" }}</p>
-            <p><strong>Surveillance :</strong> {{ sections.traitement.surveillance|default:"-" }}</p>
-        </section>
-    {% endif %}
-
-    {% if episodes %}
-        <section class="card">
-            <h2>Histoire de la maladie</h2>
-
-            {% for episode in episodes %}
-                <div class="formset-item">
-                    <p><strong>Épisode {{ episode.ordre }}</strong></p>
-                    <p><strong>Date :</strong> {{ episode.date_debut|default:"-" }}</p>
-                    <p><strong>Signes :</strong> {{ episode.signes|default:"-" }}</p>
-                    <p><strong>Contexte :</strong> {{ episode.contexte|default:"-" }}</p>
-                    <p><strong>Signes associés :</strong> {{ episode.signes_associes|default:"-" }}</p>
-                    <p><strong>Traitement reçu :</strong> {{ episode.traitement_recu|default:"-" }}</p>
-                    <p><strong>Évolution :</strong> {{ episode.get_evolution_display|default:"-" }}</p>
+    <!-- ================================================ -->
+    <!-- TAB: VUE D'ENSEMBLE -->
+    <!-- ================================================ -->
+    <div id="tab-overview" class="tab-content-section active">
+        <div class="info-grid">
+            <!-- État civil -->
+            <div class="info-card">
+                <div class="info-card-header">📋 État civil</div>
+                <div class="info-card-body">
+                    <div class="info-row">
+                        <span class="label">Nom complet</span>
+                        <span class="value">{{ observation.nom }} {{ observation.prenoms }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Date de naissance</span>
+                        <span class="value {% if not observation.date_naissance %}empty{% endif %}">
+                            {{ observation.date_naissance|date:"d/m/Y"|default:"Non renseignée" }}
+                        </span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Âge</span>
+                        <span class="value">{{ observation.age_display }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Sexe</span>
+                        <span class="value">{{ observation.get_sexe_display }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Adresse</span>
+                        <span class="value {% if not observation.adresse %}empty{% endif %}">
+                            {{ observation.adresse|default:"Non renseignée" }}
+                        </span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Téléphone</span>
+                        <span class="value {% if not observation.telephone %}empty{% endif %}">
+                            {{ observation.telephone|default:"Non renseigné" }}
+                        </span>
+                    </div>
                 </div>
-            {% endfor %}
-        </section>
-    {% endif %}
+            </div>
 
-    {% if hypotheses %}
-        <section class="card">
-            <h2>Discussion diagnostique</h2>
-
-            {% for hypo in hypotheses %}
-                <div class="formset-item">
-                    <p><strong>Diagnostic {{ hypo.ordre }}</strong></p>
-                    <p><strong>Diagnostic proposé :</strong> {{ hypo.diagnostic_propose|default:"-" }}</p>
-                    <p><strong>Arguments pour :</strong> {{ hypo.arguments_pour|default:"-" }}</p>
-                    <p><strong>Arguments contre :</strong> {{ hypo.arguments_contre|default:"-" }}</p>
-                    <p><strong>Paraclinique :</strong> {{ hypo.paraclinique|default:"-" }}</p>
+            <!-- Admission -->
+            <div class="info-card">
+                <div class="info-card-header">🏥 Admission</div>
+                <div class="info-card-body">
+                    <div class="info-row">
+                        <span class="label">Date d'admission</span>
+                        <span class="value {% if not observation.date_admission %}empty{% endif %}">
+                            {{ observation.date_admission|date:"d/m/Y"|default:"Non renseignée" }}
+                        </span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Lit</span>
+                        <span class="value {% if not observation.lit %}empty{% endif %}">
+                            {{ observation.lit|default:"Non renseigné" }}
+                        </span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">N° Dossier</span>
+                        <span class="value {% if not observation.numero_dossier %}empty{% endif %}">
+                            {{ observation.numero_dossier|default:"Non renseigné" }}
+                        </span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Motif</span>
+                        <span class="value {% if not observation.motif_admission %}empty{% endif %}">
+                            {{ observation.motif_admission|truncatechars:80|default:"Non renseigné" }}
+                        </span>
+                    </div>
                 </div>
-            {% endfor %}
-        </section>
-    {% endif %}
+            </div>
 
-    {% if evolutions %}
-        <section class="card">
-            <h2>Évolutions</h2>
-
-            {% for evolution in evolutions %}
-                <div class="formset-item">
-                    <p><strong>Date :</strong> {{ evolution.date|default:"-" }}</p>
-                    <p><strong>Description :</strong> {{ evolution.description|default:"-" }}</p>
-                    <p><strong>Statut :</strong> {{ evolution.get_statut_display|default:"-" }}</p>
+            <!-- Diagnostic -->
+            <div class="info-card">
+                <div class="info-card-header">🔬 Diagnostic</div>
+                <div class="info-card-body">
+                    <div class="info-row">
+                        <span class="label">Diagnostic retenu</span>
+                        <span class="value {% if not observation.diagnostic_retenu %}empty{% endif %}">
+                            {{ observation.diagnostic_retenu|truncatechars:100|default:"Non renseigné" }}
+                        </span>
+                    </div>
                 </div>
-            {% endfor %}
-        </section>
-    {% endif %}
+            </div>
+
+            <!-- Dernier traitement -->
+            <div class="info-card">
+                <div class="info-card-header">💊 Dernier traitement</div>
+                <div class="info-card-body">
+                    {% if dernier_traitement %}
+                        <div class="info-row">
+                            <span class="label">Version</span>
+                            <span class="value">v{{ dernier_traitement.version }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Type</span>
+                            <span class="value">{{ dernier_traitement.get_type_ajustement_display }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Date</span>
+                            <span class="value">{{ dernier_traitement.date_heure|date:"d/m/Y H:i" }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Lignes</span>
+                            <span class="value">{{ dernier_traitement.lignes.count }}</span>
+                        </div>
+                    {% else %}
+                        <div class="info-row">
+                            <span class="label">Traitement</span>
+                            <span class="value empty">Aucun traitement enregistré</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================ -->
+    <!-- TAB: ANTÉCÉDENTS -->
+    <!-- ================================================ -->
+    <div id="tab-antecedents" class="tab-content-section">
+        <div class="info-grid">
+            <!-- Antécédents familiaux -->
+            <div class="info-card">
+                <div class="info-card-header">👨‍👩‍👧 Antécédents familiaux</div>
+                <div class="info-card-body">
+                    {% if antecedents_familiaux %}
+                        <div class="info-row">
+                            <span class="label">Rang fratrie</span>
+                            <span class="value {% if not antecedents_familiaux.rang_fratrie %}empty{% endif %}">
+                                {{ antecedents_familiaux.rang_fratrie|default:"Non renseigné" }}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Ascendants</span>
+                            <span class="value {% if not antecedents_familiaux.etat_sante_ascendants %}empty{% endif %}">
+                                {{ antecedents_familiaux.etat_sante_ascendants|truncatechars:60|default:"Non renseigné" }}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Collatéraux</span>
+                            <span class="value {% if not antecedents_familiaux.etat_sante_collateraux %}empty{% endif %}">
+                                {{ antecedents_familiaux.etat_sante_collateraux|truncatechars:60|default:"Non renseigné" }}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Tares familiales</span>
+                            <span class="value">
+                                {% for tare in antecedents_familiaux.tares_familiales %}
+                                    <span class="tag tag-red">{{ tare }}</span>
+                                {% empty %}
+                                    <span class="empty">Aucune</span>
+                                {% endfor %}
+                            </span>
+                        </div>
+                    {% else %}
+                        <div class="info-row">
+                            <span class="label">Antécédents familiaux</span>
+                            <span class="value empty">Non renseignés</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Grossesse -->
+            <div class="info-card">
+                <div class="info-card-header">🤰 Grossesse</div>
+                <div class="info-card-body">
+                    {% if grossesse %}
+                        <div class="info-row">
+                            <span class="label">Âge mère</span>
+                            <span class="value {% if not grossesse.age_mere %}empty{% endif %}">
+                                {{ grossesse.age_mere|default:"Non renseigné" }}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">GPA</span>
+                            <span class="value {% if not grossesse.gpa %}empty{% endif %}">
+                                {{ grossesse.gpa|default:"Non renseigné" }}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Nb CPN</span>
+                            <span class="value {% if not grossesse.nombre_cpn %}empty{% endif %}">
+                                {{ grossesse.nombre_cpn|default:"Non renseigné" }}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Conclusion</span>
+                            <span class="value {% if not grossesse.conclusion %}empty{% endif %}">
+                                {{ grossesse.get_conclusion_display|default:"Non renseignée" }}
+                            </span>
+                        </div>
+                    {% else %}
+                        <div class="info-row">
+                            <span class="label">Grossesse</span>
+                            <span class="value empty">Non renseignée</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Accouchement -->
+            <div class="info-card">
+                <div class="info-card-header">👶 Accouchement</div>
+                <div class="info-card-body">
+                    {% if accouchement %}
+                        <div class="info-row">
+                            <span class="label">Terme</span>
+                            <span class="value {% if not accouchement.terme %}empty{% endif %}">
+                                {{ accouchement.get_terme_display|default:"Non renseigné" }}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Voie</span>
+                            <span class="value {% if not accouchement.voie %}empty{% endif %}">
+                                {{ accouchement.get_voie_display|default:"Non renseignée" }}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Poids naissance</span>
+                            <span class="value {% if not accouchement.poids_naissance_kg %}empty{% endif %}">
+                                {{ accouchement.poids_naissance_kg|default:"Non renseigné" }} kg
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">APGAR</span>
+                            <span class="value {% if not accouchement.indice_apgar %}empty{% endif %}">
+                                {{ accouchement.indice_apgar|default:"Non renseigné" }}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Adaptation</span>
+                            <span class="value {% if not accouchement.adaptation_neonatale %}empty{% endif %}">
+                                {{ accouchement.get_adaptation_neonatale_display|default:"Non renseignée" }}
+                            </span>
+                        </div>
+                    {% else %}
+                        <div class="info-row">
+                            <span class="label">Accouchement</span>
+                            <span class="value empty">Non renseigné</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Alimentation -->
+            <div class="info-card">
+                <div class="info-card-header">🍼 Alimentation</div>
+                <div class="info-card-body">
+                    {% if alimentation %}
+                        <div class="info-row">
+                            <span class="label">Type</span>
+                            <span class="value">
+                                {% for type in alimentation.type_alimentation %}
+                                    <span class="tag tag-blue">{{ type }}</span>
+                                {% empty %}
+                                    <span class="empty">Non renseigné</span>
+                                {% endfor %}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">AME jusqu'à</span>
+                            <span class="value {% if not alimentation.ame_jusqua_mois %}empty{% endif %}">
+                                {{ alimentation.ame_jusqua_mois|default:"Non renseigné" }} mois
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Régime</span>
+                            <span class="value {% if not alimentation.regime %}empty{% endif %}">
+                                {{ alimentation.get_regime_display|default:"Non renseigné" }}
+                            </span>
+                        </div>
+                    {% else %}
+                        <div class="info-row">
+                            <span class="label">Alimentation</span>
+                            <span class="value empty">Non renseignée</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Vaccination -->
+            <div class="info-card">
+                <div class="info-card-header">💉 Vaccination</div>
+                <div class="info-card-body">
+                    {% if vaccination %}
+                        <div class="info-row">
+                            <span class="label">Correcte</span>
+                            <span class="value">
+                                {% if vaccination.vaccination_correcte %}
+                                    <span class="tag tag-green">Oui</span>
+                                {% elif vaccination.vaccination_correcte == False %}
+                                    <span class="tag tag-red">Non</span>
+                                {% else %}
+                                    <span class="empty">Non renseigné</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Vaccins reçus</span>
+                            <span class="value">
+                                {% for vaccin in vaccination.vaccins_recus %}
+                                    <span class="tag tag-green">{{ vaccin }}</span>
+                                {% empty %}
+                                    <span class="empty">Aucun</span>
+                                {% endfor %}
+                            </span>
+                        </div>
+                    {% else %}
+                        <div class="info-row">
+                            <span class="label">Vaccination</span>
+                            <span class="value empty">Non renseignée</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Fiche sociale -->
+            <div class="info-card">
+                <div class="info-card-header">🏠 Fiche sociale</div>
+                <div class="info-card-body">
+                    {% if fiche_sociale %}
+                        <div class="info-row">
+                            <span class="label">Profession père</span>
+                            <span class="value {% if not fiche_sociale.profession_pere %}empty{% endif %}">
+                                {{ fiche_sociale.profession_pere|default:"Non renseignée" }}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Profession mère</span>
+                            <span class="value {% if not fiche_sociale.profession_mere %}empty{% endif %}">
+                                {{ fiche_sociale.profession_mere|default:"Non renseignée" }}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Niveau social</span>
+                            <span class="value {% if not fiche_sociale.niveau_social %}empty{% endif %}">
+                                {{ fiche_sociale.get_niveau_social_display|default:"Non renseigné" }}
+                            </span>
+                        </div>
+                    {% else %}
+                        <div class="info-row">
+                            <span class="label">Fiche sociale</span>
+                            <span class="value empty">Non renseignée</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================ -->
+    <!-- TAB: HISTOIRE DE LA MALADIE -->
+    <!-- ================================================ -->
+    <div id="tab-histoire" class="tab-content-section">
+        <div class="section-title">
+            <span class="icon">📖</span> Histoire de la maladie
+            <span style="margin-left:auto;">
+                <a href="{% url 'patient:observation_update' observation.pk %}" class="btn btn-primary" style="padding:8px 14px; font-size:12px;">
+                    + Ajouter un épisode
+                </a>
+            </span>
+        </div>
+
+        {% if episodes %}
+            <div class="timeline">
+                {% for episode in episodes %}
+                    <div class="timeline-item">
+                        <div class="timeline-header">
+                            <span class="timeline-date">
+                                Épisode {{ episode.ordre }}
+                                {% if episode.date_debut %}
+                                    - {{ episode.date_debut|date:"d/m/Y" }}
+                                {% endif %}
+                            </span>
+                            {% if episode.evolution %}
+                                <span class="timeline-badge {% if episode.evolution == 'amelioration' %}green{% elif episode.evolution == 'aggravation' %}orange{% else %}blue{% endif %}">
+                                    {{ episode.get_evolution_display }}
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="timeline-body">
+                            {% if episode.signes %}
+                                <div class="detail-row">
+                                    <span class="detail-label">Signes :</span>
+                                    <span>{{ episode.signes }}</span>
+                                </div>
+                            {% endif %}
+                            {% if episode.contexte %}
+                                <div class="detail-row">
+                                    <span class="detail-label">Contexte :</span>
+                                    <span>{{ episode.contexte }}</span>
+                                </div>
+                            {% endif %}
+                            {% if episode.signes_associes %}
+                                <div class="detail-row">
+                                    <span class="detail-label">Signes associés :</span>
+                                    <span>{{ episode.signes_associes }}</span>
+                                </div>
+                            {% endif %}
+                            {% if episode.traitement_recu %}
+                                <div class="detail-row">
+                                    <span class="detail-label">Traitement reçu :</span>
+                                    <span>{{ episode.traitement_recu }}</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="info-card">
+                <div class="info-card-body" style="text-align:center; color:#94a3b8; padding:40px;">
+                    Aucun épisode enregistré.
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- ================================================ -->
+    <!-- TAB: EXAMEN CLINIQUE -->
+    <!-- ================================================ -->
+    <div id="tab-examen" class="tab-content-section">
+        <div class="section-title">
+            <span class="icon">🩺</span> Examen clinique initial
+        </div>
+
+        {% if examen_clinique %}
+            <!-- Biométrie -->
+            <div class="info-card" style="margin-bottom:20px;">
+                <div class="info-card-header">📏 Biométrie</div>
+                <div class="info-card-body">
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:16px;">
+                        <div class="info-row" style="flex-direction:column; align-items:flex-start;">
+                            <span class="label">PC (cm)</span>
+                            <span class="value" style="font-size:20px;">{{ examen_clinique.pc_cm|default:"—" }}</span>
+                        </div>
+                        <div class="info-row" style="flex-direction:column; align-items:flex-start;">
+                            <span class="label">PT (cm)</span>
+                            <span class="value" style="font-size:20px;">{{ examen_clinique.pt_cm|default:"—" }}</span>
+                        </div>
+                        <div class="info-row" style="flex-direction:column; align-items:flex-start;">
+                            <span class="label">Poids (kg)</span>
+                            <span class="value" style="font-size:20px;">{{ examen_clinique.poids_kg|default:"—" }}</span>
+                        </div>
+                        <div class="info-row" style="flex-direction:column; align-items:flex-start;">
+                            <span class="label">Taille (cm)</span>
+                            <span class="value" style="font-size:20px;">{{ examen_clinique.taille_cm|default:"—" }}</span>
+                        </div>
+                        <div class="info-row" style="flex-direction:column; align-items:flex-start;">
+                            <span class="label">Conclusion</span>
+                            <span class="value">
+                                {% if examen_clinique.conclusion_biometrie %}
+                                    <span class="tag {% if examen_clinique.conclusion_biometrie == 'eutrophique' %}tag-green{% else %}tag-orange{% endif %}">
+                                        {{ examen_clinique.get_conclusion_biometrie_display }}
+                                    </span>
+                                {% else %}
+                                    <span class="empty">—</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signes généraux -->
+            <div class="info-card" style="margin-bottom:20px;">
+                <div class="info-card-header">🌡 Signes généraux (3A2S)</div>
+                <div class="info-card-body">
+                    <div class="info-row">
+                        <span class="label">Signes présents</span>
+                        <span class="value">
+                            {% for signe in examen_clinique.signes_3a2s %}
+                                <span class="tag tag-orange">{{ signe }}</span>
+                            {% empty %}
+                                <span class="empty">Aucun signe coché</span>
+                            {% endfor %}
+                        </span>
+                    </div>
+                    {% if examen_clinique.signes_generaux_precision %}
+                        <div class="info-row">
+                            <span class="label">Précisions</span>
+                            <span class="value">{{ examen_clinique.signes_generaux_precision }}</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Signes fonctionnels -->
+            {% if examen_clinique.signes_fonctionnels %}
+                <div class="info-card" style="margin-bottom:20px;">
+                    <div class="info-card-header">📝 Signes fonctionnels</div>
+                    <div class="info-card-body">
+                        {{ examen_clinique.signes_fonctionnels }}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Examen clinique complet -->
+            <div style="text-align:center; padding:20px;">
+                <a href="{% url 'patient:observation_generate_docx' observation.pk %}" class="btn btn-primary">
+                    📄 Voir l'examen complet dans le document Word
+                </a>
+            </div>
+        {% else %}
+            <div class="info-card">
+                <div class="info-card-body" style="text-align:center; color:#94a3b8; padding:40px;">
+                    Aucun examen clinique enregistré.
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- ================================================ -->
+    <!-- TAB: SUIVI HOSPITALIER -->
+    <!-- ================================================ -->
+    <div id="tab-suivi" class="tab-content-section">
+        <div class="section-title">
+            <span class="icon">📈</span> Suivi hospitalier
+        </div>
+
+        <div class="dashboard-tabs" style="margin-bottom:16px;">
+            <button class="dashboard-tab active" data-tab="tab-suivi-examens">🩺 Examens physiques</button>
+            <button class="dashboard-tab" data-tab="tab-suivi-rehydratation">💧 Réhydratations</button>
+            <button class="dashboard-tab" data-tab="tab-suivi-traitements">💊 Traitements</button>
+        </div>
+
+        <!-- Sous-tab: Examens physiques -->
+        <div id="tab-suivi-examens" class="tab-content-section active">
+            <div style="margin-bottom:16px; text-align:right;">
+                <a href="{% url 'patient:examen_physique_create' observation.pk %}" class="btn btn-primary" style="padding:8px 14px; font-size:12px;">
+                    + Nouvel examen
+                </a>
+            </div>
+
+            {% if examens_physiques %}
+                <div class="timeline">
+                    {% for examen in examens_physiques %}
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <span class="timeline-date">
+                                    {{ examen.date_heure|date:"d/m/Y H:i" }}
+                                </span>
+                                {% if examen.examine_par %}
+                                    <span class="timeline-badge blue">Par : {{ examen.examine_par }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="timeline-body">
+                                <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:10px;">
+                                    {% if examen.temperature_c %}
+                                        <span class="tag tag-orange">🌡 {{ examen.temperature_c }}°C</span>
+                                    {% endif %}
+                                    {% if examen.frequence_cardiaque %}
+                                        <span class="tag tag-red">❤ {{ examen.frequence_cardiaque }} bpm</span>
+                                    {% endif %}
+                                    {% if examen.frequence_respiratoire %}
+                                        <span class="tag tag-blue">🫁 {{ examen.frequence_respiratoire }} cpm</span>
+                                    {% endif %}
+                                    {% if examen.saturation_oxygene %}
+                                        <span class="tag tag-green">O₂ {{ examen.saturation_oxygene }}%</span>
+                                    {% endif %}
+                                    {% if examen.poids_kg %}
+                                        <span class="tag tag-purple">⚖ {{ examen.poids_kg }} kg</span>
+                                    {% endif %}
+                                </div>
+                                {% if examen.signes_generaux %}
+                                    <div class="detail-row">
+                                        <span class="detail-label">Signes généraux :</span>
+                                        <span>
+                                            {% for signe in examen.signes_generaux %}
+                                                <span class="tag tag-orange">{{ signe }}</span>
+                                            {% endfor %}
+                                        </span>
+                                    </div>
+                                {% endif %}
+                                {% if examen.conclusion %}
+                                    <div class="detail-row">
+                                        <span class="detail-label">Conclusion :</span>
+                                        <span>{{ examen.conclusion }}</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="info-card">
+                    <div class="info-card-body" style="text-align:center; color:#94a3b8; padding:40px;">
+                        Aucun examen physique enregistré.
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Sous-tab: Réhydratations -->
+        <div id="tab-suivi-rehydratation" class="tab-content-section">
+            <div style="margin-bottom:16px; text-align:right;">
+                <a href="{% url 'patient:fiche_rehydratation_create' observation.pk %}" class="btn btn-primary" style="padding:8px 14px; font-size:12px;">
+                    + Nouvelle réhydratation
+                </a>
+            </div>
+
+            {% if fiches_rehydratation %}
+                <div class="timeline">
+                    {% for fiche in fiches_rehydratation %}
+                        <div class="timeline-item cyan">
+                            <div class="timeline-header">
+                                <span class="timeline-date">
+                                    {{ fiche.heure_debut|date:"d/m/Y H:i" }}
+                                </span>
+                                <span class="timeline-badge {% if fiche.statut == 'terminee' %}green{% else %}blue{% endif %}">
+                                    {{ fiche.get_statut_display }}
+                                </span>
+                            </div>
+                            <div class="timeline-body">
+                                <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:10px;">
+                                    {% if fiche.poids_initial_kg %}
+                                        <span class="tag tag-blue">⚖ Initial : {{ fiche.poids_initial_kg }} kg</span>
+                                    {% endif %}
+                                    {% if fiche.poids_final_kg %}
+                                        <span class="tag tag-green">⚖ Final : {{ fiche.poids_final_kg }} kg</span>
+                                    {% endif %}
+                                    {% if fiche.gain_poids_display %}
+                                        <span class="tag tag-green">📈 Gain : {{ fiche.gain_poids_display }}</span>
+                                    {% endif %}
+                                    {% if fiche.quantite_liquide_ml %}
+                                        <span class="tag tag-cyan">💧 {{ fiche.quantite_liquide_ml }} mL</span>
+                                    {% endif %}
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Évaluations :</span>
+                                    <span>{{ fiche.evaluations_horaires.count }} évaluation(s) horaire(s)</span>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="info-card">
+                    <div class="info-card-body" style="text-align:center; color:#94a3b8; padding:40px;">
+                        Aucune fiche de réhydratation enregistrée.
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Sous-tab: Traitements -->
+        <div id="tab-suivi-traitements" class="tab-content-section">
+            <div style="margin-bottom:16px; text-align:right;">
+                <a href="{% url 'patient:traitement_ajustement_create' observation.pk %}" class="btn btn-primary" style="padding:8px 14px; font-size:12px;">
+                    + Nouveau traitement
+                </a>
+            </div>
+
+            {% if traitements_ajustes %}
+                <div class="timeline">
+                    {% for traitement in traitements_ajustes %}
+                        <div class="timeline-item orange">
+                            <div class="timeline-header">
+                                <span class="timeline-date">
+                                    v{{ traitement.version }} - {{ traitement.date_heure|date:"d/m/Y H:i" }}
+                                </span>
+                                <span class="timeline-badge orange">
+                                    {{ traitement.get_type_ajustement_display }}
+                                </span>
+                            </div>
+                            <div class="timeline-body">
+                                {% if traitement.motif %}
+                                    <div class="detail-row">
+                                        <span class="detail-label">Motif :</span>
+                                        <span>{{ traitement.motif }}</span>
+                                    </div>
+                                {% endif %}
+                                <div class="detail-row">
+                                    <span class="detail-label">Lignes :</span>
+                                    <span>
+                                        {% for ligne in traitement.lignes.all %}
+                                            <span class="tag tag-orange">{{ ligne.nom }} {{ ligne.dose }}</span>
+                                        {% empty %}
+                                            <span class="empty">Aucune ligne</span>
+                                        {% endfor %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="info-card">
+                    <div class="info-card-body" style="text-align:center; color:#94a3b8; padding:40px;">
+                        Aucun traitement enregistré.
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ================================================ -->
+    <!-- TAB: DIAGNOSTIC & TRAITEMENT -->
+    <!-- ================================================ -->
+    <div id="tab-diagnostic" class="tab-content-section">
+        <div class="info-grid">
+            <!-- Hypothèses diagnostiques -->
+            <div class="info-card">
+                <div class="info-card-header">🔬 Hypothèses diagnostiques</div>
+                <div class="info-card-body">
+                    {% if hypotheses %}
+                        {% for hypo in hypotheses %}
+                            <div style="margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid #f1f5f9;">
+                                <div style="font-weight:700; margin-bottom:8px;">
+                                    Diagnostic {{ hypo.ordre }}
+                                </div>
+                                {% if hypo.diagnostic_propose %}
+                                    <div class="info-row">
+                                        <span class="label">Proposé</span>
+                                        <span class="value">{{ hypo.diagnostic_propose }}</span>
+                                    </div>
+                                {% endif %}
+                                {% if hypo.arguments_pour %}
+                                    <div class="info-row">
+                                        <span class="label">Arguments pour</span>
+                                        <span class="value">{{ hypo.arguments_pour|truncatechars:80 }}</span>
+                                    </div>
+                                {% endif %}
+                                {% if hypo.arguments_contre %}
+                                    <div class="info-row">
+                                        <span class="label">Arguments contre</span>
+                                        <span class="value">{{ hypo.arguments_contre|truncatechars:80 }}</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="info-row">
+                            <span class="label">Hypothèses</span>
+                            <span class="value empty">Aucune hypothèse enregistrée</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Diagnostic retenu -->
+            <div class="info-card">
+                <div class="info-card-header">✅ Diagnostic retenu</div>
+                <div class="info-card-body">
+                    {% if observation.diagnostic_retenu %}
+                        <div style="font-size:15px; font-weight:600; color:#166534; background:#f0fdf4; padding:16px; border-radius:8px;">
+                            {{ observation.diagnostic_retenu }}
+                        </div>
+                    {% else %}
+                        <div class="info-row">
+                            <span class="label">Diagnostic retenu</span>
+                            <span class="value empty">Non renseigné</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Traitement initial -->
+            <div class="info-card">
+                <div class="info-card-header">💊 Traitement initial</div>
+                <div class="info-card-body">
+                    {% if traitement %}
+                        {% if traitement.symptomatique %}
+                            <div class="info-row">
+                                <span class="label">Symptomatique</span>
+                                <span class="value">{{ traitement.symptomatique|truncatechars:100 }}</span>
+                            </div>
+                        {% endif %}
+                        {% if traitement.etiologique %}
+                            <div class="info-row">
+                                <span class="label">Étiologique</span>
+                                <span class="value">{{ traitement.etiologique|truncatechars:100 }}</span>
+                            </div>
+                        {% endif %}
+                        {% if traitement.surveillance %}
+                            <div class="info-row">
+                                <span class="label">Surveillance</span>
+                                <span class="value">{{ traitement.surveillance|truncatechars:100 }}</span>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="info-row">
+                            <span class="label">Traitement</span>
+                            <span class="value empty">Non renseigné</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BOUTON RETOUR EN HAUT -->
+<button class="scroll-top-btn" id="scroll-top-btn" title="Retour en haut">
+    ↑
+</button>
+
+<!-- ================================================ -->
+<!-- JAVASCRIPT POUR LES ONGLETS -->
+<!-- ================================================ -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // ============================================
+    // CONFIGURATION
+    // ============================================
+    const TABS_OFFSET = 80; // Hauteur des onglets sticky + marge
+
+    // ============================================
+    // FONCTION : Scroller vers le contenu des onglets
+    // ============================================
+    function scrollToContent() {
+        const wrapper = document.getElementById('tab-content-wrapper');
+        if (wrapper) {
+            const y = wrapper.getBoundingClientRect().top + window.pageYOffset - TABS_OFFSET;
+            window.scrollTo({
+                top: y,
+                behavior: 'smooth'
+            });
+        }
+    }
+
+    // ============================================
+    // ONGLETS PRINCIPAUX
+    // ============================================
+    const mainTabs = document.querySelectorAll('.dashboard-tabs#main-tabs > .dashboard-tab');
+    const mainSections = document.querySelectorAll('#tab-content-wrapper > .tab-content-section');
+
+    mainTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            // Désactiver tous les onglets principaux
+            mainTabs.forEach(t => t.classList.remove('active'));
+            mainSections.forEach(s => s.classList.remove('active'));
+
+            // Activer l'onglet cliqué
+            this.classList.add('active');
+            const targetId = this.getAttribute('data-tab');
+            const targetSection = document.getElementById(targetId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+
+            // ✅ SCROLLER AUTOMATIQUEMENT VERS LE CONTENU
+            scrollToContent();
+        });
+    });
+
+    // ============================================
+    // SOUS-ONGLETS DU SUIVI HOSPITALIER
+    // ============================================
+    const suiviTabs = document.querySelectorAll('#tab-suivi .dashboard-tab');
+    const suiviSections = document.querySelectorAll('#tab-suivi > .tab-content-section');
+
+    suiviTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            suiviTabs.forEach(t => t.classList.remove('active'));
+            suiviSections.forEach(s => s.classList.remove('active'));
+
+            this.classList.add('active');
+            const targetId = this.getAttribute('data-tab');
+            const targetSection = document.getElementById(targetId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+
+            // ✅ SCROLLER VERS LE CONTENU DU SOUS-ONGLET
+            scrollToContent();
+        });
+    });
+
+    // ============================================
+    // BOUTON RETOUR EN HAUT (avec vérification)
+    // ============================================
+    const scrollTopBtn = document.getElementById('scroll-top-btn');
+
+    // ✅ Vérifier que le bouton existe avant de l'utiliser
+    if (scrollTopBtn) {
+        // Afficher le bouton quand on scrolle vers le bas
+        window.addEventListener('scroll', function() {
+            if (window.pageYOffset > 300) {
+                scrollTopBtn.classList.add('visible');
+            } else {
+                scrollTopBtn.classList.remove('visible');
+            }
+        });
+
+        // Scroller en haut quand on clique sur le bouton
+        scrollTopBtn.addEventListener('click', function() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+    }
+
+    // ============================================
+    // NAVIGATION CLAVIER (OPTIONNEL)
+    // ============================================
+    document.addEventListener('keydown', function(e) {
+        // Touche "Home" : retour en haut
+        if (e.key === 'Home' && !e.target.matches('input, textarea, select')) {
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    });
+
+});
+</script>
 {% endblock %}

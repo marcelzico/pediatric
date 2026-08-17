@@ -899,26 +899,26 @@ class ExamenClinique(models.Model):
         blank=True,
         verbose_name="PT (cm)",
     )
-    pbd_cm = models.DecimalField(
+    pbd_mm = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         null=True,
         blank=True,
-        verbose_name="PB droit (cm)",
+        verbose_name="PB droit (mm)",
     )
-    pbg_cm = models.DecimalField(
+    pbg_mm = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         null=True,
         blank=True,
-        verbose_name="PB gauche (cm)",
+        verbose_name="PB gauche (mm)",
     )
-    pb_cm = models.DecimalField(
+    pb_mm = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         null=True,
         blank=True,
-        verbose_name="PB (cm)",
+        verbose_name="PB (mm)",
     )
     poids_kg = models.DecimalField(
         max_digits=5,
@@ -940,21 +940,21 @@ class ExamenClinique(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
-        verbose_name="P/T",
+        verbose_name="P/T (poids pour taille)",
     )
     t_a = models.DecimalField(
         max_digits=6,
         decimal_places=2,
         null=True,
         blank=True,
-        verbose_name="T/A",
+        verbose_name="T/A (taille pour âge)",
     )
     p_a = models.DecimalField(
         max_digits=6,
         decimal_places=2,
         null=True,
         blank=True,
-        verbose_name="P/A",
+        verbose_name="P/A (poids pour aâge)",
     )
 
     nombre_dents = models.PositiveSmallIntegerField(
@@ -1245,7 +1245,7 @@ class ExamenPhysique(models.Model):
         max_length=30,
         null=True,
         blank=True,
-        verbose_name="Tension artérielle",
+        verbose_name="Tension artérielle mmHg",
         help_text="Exemple : 100/60",
     )
 
@@ -1253,6 +1253,12 @@ class ExamenPhysique(models.Model):
         null=True,
         blank=True,
         verbose_name="SpO₂ (%)",
+    )
+
+    glycelie = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Glycémie capillaire (g/l)",
     )
 
     # --------------------------------------------------------
@@ -1263,7 +1269,7 @@ class ExamenPhysique(models.Model):
         default=list,
         blank=True,
         verbose_name="Signes généraux",
-        help_text="Liste de codes : asthenie, fievre, paleur, cyanose, ictere, etc.",
+        help_text="Liste de codes : asthenie, fievre, amaigrissement, anorexie, sueur profuse",
     )
 
     signes_fonctionnels = models.JSONField(
@@ -1389,10 +1395,10 @@ class FicheRehydratation(models.Model):
         verbose_name="Quantité de liquide (mL)",
     )
 
-    duree_minutes = models.PositiveIntegerField(
+    duree_heure = models.PositiveIntegerField(
         null=True,
         blank=True,
-        verbose_name="Durée (minutes)",
+        verbose_name="Durée (heure)",
         help_text="Si vide, la durée peut être calculée entre heure de début et heure de fin.",
     )
 
@@ -1400,7 +1406,7 @@ class FicheRehydratation(models.Model):
         default=list,
         blank=True,
         verbose_name="Signes généraux",
-        help_text="Liste de codes : asthenie, fievre, paleur, cyanose, agitation, lethargie, etc.",
+        help_text="Liste de codes : asthenie, fievre, lethargie, etc.",
     )
 
     signes_fonctionnels = models.JSONField(
@@ -1478,33 +1484,15 @@ class FicheRehydratation(models.Model):
 
         return f"{text} kg"
 
-    @property
-    def duree_calculee_minutes(self):
-        if self.duree_minutes is not None:
-            return self.duree_minutes
-
-        if self.heure_debut and self.heure_fin:
-            delta = self.heure_fin - self.heure_debut
-            return int(delta.total_seconds() // 60)
-
-        return None
 
     @property
     def duree_display(self):
-        total_minutes = self.duree_calculee_minutes
+        total_heure = self.duree_heure
 
-        if total_minutes is None:
-            return ""
-
-        if total_minutes < 60:
-            return f"{total_minutes} min"
-
-        hours, minutes = divmod(total_minutes, 60)
-
-        if minutes:
-            return f"{hours} h {minutes:02d}"
-
-        return f"{hours} h"
+        if total_heure is None:
+            return "Durée non spécifiée"
+        
+        return f"{total_heure} h"
 
 
 # ============================================================
@@ -1553,7 +1541,7 @@ class EvaluationHoraireRehydratation(models.Model):
         default=list,
         blank=True,
         verbose_name="Signes généraux",
-        help_text="Liste de codes : asthenie, fievre, paleur, agitation, lethargie, convulsions, etc.",
+        help_text="Liste de codes : asthenie, fievre, lethargie, etc.",
     )
 
     signes_fonctionnels = models.JSONField(
@@ -1649,6 +1637,7 @@ class EvaluationHoraireRehydratation(models.Model):
         verbose_name="Remarque",
     )
 
+    date_heure = models.DateTimeField(verbose_name="Date et heure", default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1686,7 +1675,7 @@ class TraitementAjustement(models.Model):
     version = models.PositiveIntegerField(
         default=1,
         editable=False,
-        verbose_name="Version",
+        verbose_name="Ajustement N°",
     )
 
     date_heure = models.DateTimeField(

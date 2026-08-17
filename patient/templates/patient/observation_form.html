@@ -1,158 +1,525 @@
 {% extends "patient/base.html" %}
+{% load django_bootstrap5 %}
 
-{% block title %}
-    {{ title }}
-{% endblock %}
+{% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-    <div class="page-header">
-        <h1>{{ title }}</h1>
+<style>
+    .exam-field ul {
+        list-style: none;
+        padding-left: 0;
+        margin-bottom: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
 
-        {% if observation and observation.pk %}
-            <div class="badge">
-                Dossier : {{ observation.pk }}
-            </div>
-        {% endif %}
+    .exam-field ul li {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 0.92rem;
+    }
+
+    .exam-field ul li label {
+        margin-bottom: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+    }
+
+    .exam-field input[type="checkbox"],
+    .exam-field input[type="radio"] {
+        margin-top: 0;
+    }
+</style>
+
+<div class="container-fluid mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>{{ title }}</h2>
+        <div>
+            <span id="save-status" class="badge bg-secondary fs-6">Prêt</span>
+            {% if observation.pk %}
+                <a href="{% url 'patient:observation_detail' observation.pk %}" class="btn btn-outline-primary ms-2">Voir le dossier</a>
+            {% endif %}
+        </div>
     </div>
 
-    <form method="post" enctype="multipart/form-data" novalidate>
+    <form method="post" id="observation-main-form" data-obs-id="{{ observation.pk }}" action="{% url 'patient:observation_update' observation.pk %}?ajax=1" novalidate>
         {% csrf_token %}
 
-        {% if section_forms.observation.errors %}
-            <div class="alert alert-error">
-                Le formulaire principal contient des erreurs. Merci de vérifier les champs obligatoires.
-            </div>
-        {% endif %}
+        <!-- Navigation par Onglets -->
+        <ul class="nav nav-tabs" id="obsTabs" role="tablist">
+            <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pane-1" type="button">1. État civil</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-2" type="button">2. Antécédents</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-3" type="button">3. Grossesse</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-4" type="button">4. Accouchement</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-5" type="button">5. Alimentation</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-6" type="button">6. Vaccination</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-7" type="button">7. Contexte & Social</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-8" type="button">8. Histoire Maladie</button></li>
+            {% if is_enfant %}
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-9" type="button">9. DPM & ATCD</button></li>
+            {% endif %}
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-10" type="button">10. Examen Clinique</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-11" type="button">11. Diagnostic</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-12" type="button">12. Traitement</button></li>
+            <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pane-13" type="button">13. Évolution</button></li>
+        </ul>
 
-        {# ================================================== #}
-        {# I. ÉTAT CIVIL / ADMISSION #}
-        {# ================================================== #}
-        {% include "patient/partials/form_section.html" with title="I. État civil / Admission" section_id="etat-civil" form=section_forms.observation only %}
+        <div class="tab-content p-4 border border-top-0 rounded-bottom bg-white shadow-sm" id="obsTabsContent">
+            
+            <!-- Macro pour les boutons de navigation -->
+            {% with btn_nav='<div class="d-flex justify-content-between mt-4 pt-3 border-top"><button type="button" class="btn btn-outline-secondary btn-prev">← Précédent</button><button type="button" class="btn btn-primary btn-next">Suivant →</button></div>' %}
 
-        {# ================================================== #}
-        {# III. HISTOIRE DE LA MALADIE #}
-        {# ================================================== #}
-        {% include "patient/partials/formset_section.html" with title="III. Histoire de la maladie" subtitle="Un épisode par consultation ou maladie. Tu peux ajouter plusieurs épisodes." section_id="histoire-maladie" formset=formsets.episodes prefix="episodes" only %}
-
-        {# ================================================== #}
-        {# ANTÉCÉDENTS FAMILIAUX #}
-        {# ================================================== #}
-        {% include "patient/partials/form_section.html" with title="Antécédents familiaux" section_id="antecedents-familiaux" form=section_forms.antecedents_familiaux only %}
-
-        {# ================================================== #}
-        {# ANTÉCÉDENTS PERSONNELS - GROSSESSE #}
-        {# ================================================== #}
-        {% include "patient/partials/form_section.html" with title="Déroulement de la grossesse" section_id="grossesse" form=section_forms.grossesse only %}
-
-        {# ================================================== #}
-        {# ANTÉCÉDENTS PERSONNELS - ACCOUCHEMENT #}
-        {# ================================================== #}
-        {% include "patient/partials/form_section.html" with title="Déroulement de l'accouchement" section_id="accouchement" form=section_forms.accouchement only %}
-
-        {# ================================================== #}
-        {# ALIMENTATION #}
-        {# ================================================== #}
-        {% include "patient/partials/form_section.html" with title="Alimentation" section_id="alimentation" form=section_forms.alimentation only %}
-
-        {# ================================================== #}
-        {# VACCINATION #}
-        {# ================================================== #}
-        {% include "patient/partials/form_section.html" with title="Vaccination" section_id="vaccination" form=section_forms.vaccination only %}
-
-        {# ================================================== #}
-        {# CONTEXTE ÉPIDÉMIOLOGIQUE #}
-        {# ================================================== #}
-        {% include "patient/partials/form_section.html" with title="Contexte épidémiologique" section_id="contexte-epidemiologique" form=section_forms.contexte_epidemiologique only %}
-
-        {# ================================================== #}
-        {# FICHE SOCIALE #}
-        {# ================================================== #}
-        {% include "patient/partials/form_section.html" with title="Fiche sociale" section_id="fiche-sociale" form=section_forms.fiche_sociale only %}
-
-        {# ================================================== #}
-        {# DÉVELOPPEMENT PSYCHOMOTEUR - ENFANT #}
-        {# ================================================== #}
-        {% if section_forms.developpement_psychomoteur %}
-            {% include "patient/partials/form_section.html" with title="Développement psychomoteur" section_id="developpement-psychomoteur" form=section_forms.developpement_psychomoteur only %}
-        {% endif %}
-
-        {# ================================================== #}
-        {# ANTÉCÉDENTS PERSONNELS - ENFANT #}
-        {# ================================================== #}
-        {% if section_forms.antecedents_personnels %}
-            {% include "patient/partials/form_section.html" with title="Antécédents médicaux et chirurgicaux" section_id="antecedents-personnels" form=section_forms.antecedents_personnels only %}
-        {% endif %}
-
-        {# ================================================== #}
-        {# V. EXAMEN CLINIQUE #}
-        {# ================================================== #}
-        <section class="card" id="examen-clinique">
-            <h2>V. Examen clinique</h2>
-
-            {% if examen_base_form.non_field_errors %}
-                <div class="alert alert-error">
-                    {{ examen_base_form.non_field_errors }}
+            <!-- 1. État Civil -->
+            <div class="tab-pane fade show active" id="pane-1">
+                <h4 class="mb-3">État civil et Admission</h4>
+                <div class="row">
+                    {% for field in forms.observation %}
+                        <div class="col-md-6 mb-3">
+                            {% bootstrap_field field %}
+                        </div>
+                    {% endfor %}
                 </div>
+                {{ btn_nav }}
+            </div>
+
+            <!-- 2. Antécédents Familiaux -->
+            <div class="tab-pane fade" id="pane-2">
+                <h4 class="mb-3">Antécédents Familiaux</h4>
+                {% if forms.antecedents_familiaux %}
+                    {% for field in forms.antecedents_familiaux %}
+                        <div class="mb-3">{% bootstrap_field field %}</div>
+                    {% endfor %}
+                {% endif %}
+                {{ btn_nav }}
+            </div>
+
+            <!-- 3. Grossesse -->
+            <div class="tab-pane fade" id="pane-3">
+                <h4 class="mb-3">Déroulement de la grossesse</h4>
+                
+                {% if forms.grossesse %}
+                    <div class="row">
+                        {% for field in forms.grossesse %}
+                            <div class="col-md-6 mb-3">{% bootstrap_field field %}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                
+                <!-- 👇 SOUS-FORMULAIRE SÉROLOGIES 👇 -->
+                {% if serologies_form %}
+                <div class="card mt-4 p-3 bg-light border-primary">
+                    <h5 class="mb-3 text-primary">🧪 Sérologies maternelles</h5>
+                    <p class="text-muted small">Cochez si la sérologie a été faite et précisez le résultat.</p>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered bg-white">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 30%;">Sérologie</th>
+                                    <th style="width: 20%;">Fait ?</th>
+                                    <th style="width: 50%;">Résultat</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for group in serologies_form.grouped_fields %}
+                                <tr>
+                                    <td class="fw-bold align-middle">{{ group.label }}</td>
+                                    <td class="align-middle text-center">
+                                        <div class="form-check">
+                                            {{ group.fait }}
+                                        </div>
+                                    </td>
+                                    <td class="align-middle">
+                                        {% for radio in group.resultat %}
+                                            <div class="form-check form-check-inline">
+                                                {{ radio.tag }}
+                                                <label class="form-check-label">{{ radio.choice_label }}</label>
+                                            </div>
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {{ btn_nav }}
+            </div>
+
+            <!-- 4. Accouchement -->
+            <div class="tab-pane fade" id="pane-4">
+                <h4 class="mb-3">Déroulement de l'accouchement</h4>
+                {% if forms.accouchement %}
+                    <div class="row">
+                        {% for field in forms.accouchement %}
+                            <div class="col-md-6 mb-3">{% bootstrap_field field %}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                {{ btn_nav }}
+            </div>
+
+            <!-- 5. Alimentation -->
+            <div class="tab-pane fade" id="pane-5">
+                <h4 class="mb-3">Alimentation</h4>
+                {% if forms.alimentation %}
+                    <div class="row">
+                        {% for field in forms.alimentation %}
+                            <div class="col-md-6 mb-3">{% bootstrap_field field %}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                {{ btn_nav }}
+            </div>
+
+            <!-- 6. Vaccination -->
+            <div class="tab-pane fade" id="pane-6">
+                <h4 class="mb-3">Vaccination</h4>
+                {% if forms.vaccination %}
+                    {% for field in forms.vaccination %}
+                        <div class="mb-3">{% bootstrap_field field %}</div>
+                    {% endfor %}
+                {% endif %}
+                {{ btn_nav }}
+            </div>
+
+            <!-- 7. Contexte & Social -->
+            <div class="tab-pane fade" id="pane-7">
+                <h4 class="mb-3">Contexte Épidémiologique</h4>
+                {% if forms.contexte_epidemiologique %}
+                    {% for field in forms.contexte_epidemiologique %}
+                        <div class="mb-3">{% bootstrap_field field %}</div>
+                    {% endfor %}
+                {% endif %}
+                <hr>
+                <h4 class="mb-3">Fiche Sociale</h4>
+                {% if forms.fiche_sociale %}
+                    <div class="row">
+                        {% for field in forms.fiche_sociale %}
+                            <div class="col-md-6 mb-3">{% bootstrap_field field %}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                {{ btn_nav }}
+            </div>
+
+            <!-- 8. Histoire de la Maladie (Formset) -->
+            <div class="tab-pane fade" id="pane-8">
+                <h4 class="mb-3">Épisodes de l'histoire de la maladie</h4>
+                {{ formsets.episodes.management_form }}
+                {% for form in formsets.episodes %}
+                    <div class="card mb-3 p-3 border">
+                        <h5>Épisode {{ forloop.counter }}</h5>
+                        <div class="row">
+                            {% for field in form %}
+                                {% if field.is_hidden %}{{ field }}{% else %}
+                                <div class="col-md-6 mb-2">{% bootstrap_field field %}</div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+                {{ btn_nav }}
+            </div>
+
+            <!-- 9. DPM & ATCD (Si Enfant) -->
+            {% if is_enfant %}
+            <div class="tab-pane fade" id="pane-9">
+                <h4 class="mb-3">Développement Psychomoteur</h4>
+                {% if forms.developpement_psychomoteur %}
+                    {% for field in forms.developpement_psychomoteur %}
+                        <div class="mb-3">{% bootstrap_field field %}</div>
+                    {% endfor %}
+                {% endif %}
+                <hr>
+                <h4 class="mb-3">Antécédents Personnels</h4>
+                {% if forms.antecedents_personnels %}
+                    {% for field in forms.antecedents_personnels %}
+                        <div class="mb-3">{% bootstrap_field field %}</div>
+                    {% endfor %}
+                {% endif %}
+                {{ btn_nav }}
+            </div>
             {% endif %}
 
-            <div class="form-grid">
-                {{ examen_base_form.as_p }}
+            <!-- 10. Examen Clinique -->
+            <div class="tab-pane fade" id="pane-10">
+                <div class="alert alert-info">
+                    DEBUG exam_subforms : {{ exam_subforms.keys }}
+                </div>
+                {% for key, form in exam_subforms.items %}
+                    <p>{{ key }} → {{ form.fields|length }} champs</p>
+                {% endfor %}
+                <h4 class="mb-3">Examen Clinique</h4>
+
+                <!-- Biométrie et signes généraux -->
+                {% if forms.examen_clinique %}
+                    <div class="card mb-4 p-3 bg-light">
+                        <h5 class="mb-3">📏 Biométrie et Signes Généraux</h5>
+
+                        <div class="row">
+                            {% for field in forms.examen_clinique %}
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-semibold">
+                                        {{ field.label }}
+                                    </label>
+
+                                    {{ field }}
+
+                                    {% if field.help_text %}
+                                        <div class="form-text">
+                                            {{ field.help_text }}
+                                        </div>
+                                    {% endif %}
+
+                                    {% for error in field.errors %}
+                                        <div class="text-danger small">
+                                            {{ error }}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Vérification rapide : est-ce que la vue envoie bien exam_subforms ? -->
+                {% if not exam_subforms %}
+                    <div class="alert alert-danger">
+                        ⚠️ La variable <code>exam_subforms</code> n’est pas envoyée par la vue.
+                        Vérifie que le contexte contient bien <code>"exam_subforms": exam_subforms</code>.
+                    </div>
+                {% endif %}
+
+
+                <!-- Sous-formulaires par appareil -->
+                {% for key, form in exam_subforms.items %}
+                    <div class="card mb-4 p-3 border-primary">
+                        <h5 class="mb-3 text-primary">
+                            {% if key == "pleuropulmonaire" %}🫁 Appareil Pleuropulmonaire
+                            {% elif key == "cardiovasculaire" %}❤️ Appareil Cardiovasculaire
+                            {% elif key == "digestif" %}🫄 Appareil Digestif
+                            {% elif key == "neurologique" %}🧠 Appareil Neurologique
+                            {% elif key == "orl" %}👂 Sphère ORL (Tête et Cou)
+                            {% elif key == "cutaneomuqueux" %}🧴 Revêtement Cutanéomuqueux
+                            {% elif key == "genitaux" %}👶 Appareils Génitaux
+                            {% elif key == "osteoarticulaire" %}🦴 Appareil Ostéo-Articulaire
+                            {% else %}{{ key|title }}
+                            {% endif %}
+                        </h5>
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                        {% endif %}
+
+                        <div class="row">
+                            {% for field in form.visible_fields %}
+                                <div class="
+                                    {% if field.name == 'exceptions' or field.name == 'conclusion' %}
+                                        col-md-12
+                                    {% else %}
+                                        col-md-6
+                                    {% endif %}
+                                    mb-3 exam-field
+                                ">
+                                    <label class="form-label fw-semibold">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% for error in field.errors %}
+                                        <div class="text-danger small">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% empty %}
+                                <div class="alert alert-warning">Aucun champ visible.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+                {{ btn_nav }}
             </div>
 
-            {% for exam_section in exam_sections %}
-                {% include "patient/partials/exam_section.html" with title=exam_section.label form=exam_section.form only %}
-            {% endfor %}
-        </section>
+            <!-- 11. Discussion Diagnostique (Formset) -->
+            <div class="tab-pane fade" id="pane-11">
+                <h4 class="mb-3">Hypothèses Diagnostiques</h4>
+                {{ formsets.hypotheses.management_form }}
+                {% for form in formsets.hypotheses %}
+                    <div class="card mb-3 p-3 border">
+                        <h5>Hypothèse {{ forloop.counter }}</h5>
+                        {% for field in form %}
+                            {% if field.is_hidden %}{{ field }}{% else %}
+                            <div class="mb-2">{% bootstrap_field field %}</div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+                {{ btn_nav }}
+            </div>
 
-        {# ================================================== #}
-        {# VI. DISCUSSION DIAGNOSTIQUE #}
-        {# ================================================== #}
-        {% include "patient/partials/formset_section.html" with title="VI. Discussion diagnostique" subtitle="Une hypothèse diagnostique par ligne." section_id="discussion-diagnostique" formset=formsets.hypotheses prefix="hypotheses" only %}
+            <!-- 12. Traitement -->
+            <div class="tab-pane fade" id="pane-12">
+                <h4 class="mb-3">Traitement Proposé</h4>
+                {% if forms.traitement %}
+                    {% for field in forms.traitement %}
+                        <div class="mb-3">{% bootstrap_field field %}</div>
+                    {% endfor %}
+                {% endif %}
+                {{ btn_nav }}
+            </div>
 
-        {# ================================================== #}
-        {# VII. TRAITEMENT #}
-        {# ================================================== #}
-        {% include "patient/partials/form_section.html" with title="VII. Traitement proposé" section_id="traitement" form=section_forms.traitement only %}
+            <!-- 13. Évolution (Formset) -->
+            <div class="tab-pane fade" id="pane-13">
+                <h4 class="mb-3">Évolutions</h4>
+                {{ formsets.evolutions.management_form }}
+                {% for form in formsets.evolutions %}
+                    <div class="card mb-3 p-3 border">
+                        {% for field in form %}
+                            {% if field.is_hidden %}{{ field }}{% else %}
+                            <div class="mb-2">{% bootstrap_field field %}</div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+                {{ btn_nav }}
+            </div>
 
-        {# ================================================== #}
-        {# VIII. SURVEILLANCE / ÉVOLUTION #}
-        {# ================================================== #}
-        {% include "patient/partials/formset_section.html" with title="VIII. Surveillance / Évolution" subtitle="Évolutions ou notes de suivi." section_id="evolutions" formset=formsets.evolutions prefix="evolutions" only %}
+            {% endwith %}
+        </div>
 
-        <div class="actions">
-            <button type="submit" class="btn btn-primary">
-                Enregistrer l'observation
+        <!-- Bouton Final de Validation -->
+        <div class="d-flex justify-content-end mt-4">
+            <button type="submit" class="btn btn-success btn-lg">
+                ✓ Valider et Terminer
             </button>
-
-            <a href="{% url 'patient:observation_list' %}" class="btn btn-secondary">
-                Annuler
-            </a>
         </div>
     </form>
+</div>
 {% endblock %}
 
 {% block extra_js %}
-    <script>
-        document.addEventListener('click', function (event) {
-            const addButton = event.target.closest('.add-form-row');
-            if (!addButton) {
-                return;
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('observation-main-form');
+    if (!form) return;
+
+    // ==========================================
+    // 1. NAVIGATION ENTRE LES ONGLETS
+    // ==========================================
+    const allTabs = document.querySelectorAll('.nav-link');
+    
+    function updateNavButtons() {
+        const activeTab = document.querySelector('.nav-link.active');
+        const isFirst = activeTab === allTabs[0];
+        const isLast = activeTab === allTabs[allTabs.length - 1];
+
+        document.querySelectorAll('.btn-prev').forEach(b => b.style.display = isFirst ? 'none' : 'inline-block');
+        document.querySelectorAll('.btn-next').forEach(b => b.style.display = isLast ? 'none' : 'inline-block');
+    }
+
+    document.querySelectorAll('.btn-next').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const currentTab = document.querySelector('.nav-link.active');
+            const nextTab = currentTab.closest('li').nextElementSibling?.querySelector('.nav-link');
+            if (nextTab) {
+                new bootstrap.Tab(nextTab).show();
             }
-
-            const prefix = addButton.dataset.prefix;
-            const container = document.getElementById(`container-${prefix}`);
-            const template = document.getElementById(`template-${prefix}`);
-            const totalFormsInput = document.querySelector(`input[name="${prefix}-TOTAL_FORMS"]`);
-
-            if (!container || !template || !totalFormsInput) {
-                return;
-            }
-
-            const currentCount = parseInt(totalFormsInput.value || '0', 10);
-            const newHtml = template.innerHTML.replaceAll('__prefix__', currentCount);
-
-            container.insertAdjacentHTML('beforeend', newHtml);
-            totalFormsInput.value = currentCount + 1;
         });
-    </script>
+    });
+
+    document.querySelectorAll('.btn-prev').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const currentTab = document.querySelector('.nav-link.active');
+            const prevTab = currentTab.closest('li').previousElementSibling?.querySelector('.nav-link');
+            if (prevTab) {
+                new bootstrap.Tab(prevTab).show();
+            }
+        });
+    });
+
+    document.addEventListener('shown.bs.tab', updateNavButtons);
+    updateNavButtons(); // Initialisation
+
+    // ==========================================
+    // 2. SAUVEGARDE AUTOMATIQUE (AJAX + LOCALSTORAGE)
+    // ==========================================
+    const obsId = form.dataset.obsId;
+    const saveUrl = form.action;
+    const statusBadge = document.getElementById('save-status');
+    const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+    let saveTimeout;
+
+    function updateStatus(text, type) {
+        if (statusBadge) {
+            statusBadge.textContent = text;
+            statusBadge.className = `badge bg-${type} fs-6`;
+        }
+    }
+
+    async function saveData() {
+        const formData = new FormData(form);
+        
+        // Sauvegarde locale (File de sécurité)
+        const localData = {};
+        formData.forEach((value, key) => {
+            if (localData[key]) {
+                if (!Array.isArray(localData[key])) localData[key] = [localData[key]];
+                localData[key].push(value);
+            } else {
+                localData[key] = value;
+            }
+        });
+        localStorage.setItem(`obs_draft_${obsId}`, JSON.stringify(localData));
+
+        if (!navigator.onLine) {
+            updateStatus('⚠️ Hors ligne (Sauvegardé sur le PC)', 'warning');
+            return;
+        }
+
+        updateStatus('⏳ Sauvegarde en cours...', 'secondary');
+
+        try {
+            const response = await fetch(saveUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken
+                }
+            });
+
+            if (response.ok) {
+                updateStatus('✅ Sauvegardé', 'success');
+            } else {
+                updateStatus('❌ Erreur serveur', 'danger');
+            }
+        } catch (error) {
+            updateStatus('⚠️ Hors ligne (En attente de synchro)', 'warning');
+        }
+    }
+
+    form.addEventListener('input', () => {
+        clearTimeout(saveTimeout);
+        updateStatus('✍️ Modifications non sauvegardées', 'info');
+        saveTimeout = setTimeout(saveData, 1500);
+    });
+
+    form.addEventListener('change', () => {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(saveData, 500);
+    });
+
+    window.addEventListener('online', () => {
+        const draft = localStorage.getItem(`obs_draft_${obsId}`);
+        if (draft) {
+            updateStatus('🔄 Connexion rétablie, synchronisation...', 'info');
+            saveData();
+        }
+    });
+});
+</script>
 {% endblock %}

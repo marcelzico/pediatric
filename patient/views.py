@@ -1,28 +1,37 @@
-# views.py
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
-
-from .exam_forms import EXAM_SUBFORMS
-
-from . import constants as C
+from django.db.models import Count, Q
+from django.utils import timezone
 
 from .models import (
     ObservationMedicale,
+    AntecedentsFamiliaux,
+    Grossesse,
+    Accouchement,
+    Alimentation,
+    Vaccination,
+    ContexteEpidemiologique,
+    FicheSociale,
+    DeveloppementPsychomoteur,
+    AntecedentsPersonnels,
+    ExamenClinique,
+    HypotheseDiagnostic,
+    Traitement,
+    Evolution,
+    EpisodeHistoireMaladie,
+    ExamenPhysique,
+    FicheRehydratation,
+    EvaluationHoraireRehydratation,
     TraitementAjustement,
     LigneTraitement,
 )
 from .forms import (
-    TraitementAjustementForm,
-    LigneTraitementForm,
-    LigneTraitementFormSet,
-
-    FicheRehydratationForm,
-    EvaluationHoraireRehydratationFormSet,
     ObservationMedicaleForm,
     AntecedentsFamiliauxForm,
     GrossesseForm,
@@ -33,15 +42,24 @@ from .forms import (
     FicheSocialeForm,
     DeveloppementPsychomoteurForm,
     AntecedentsPersonnelsForm,
-    ExamenCliniqueBaseForm,
+    ExamenCliniqueForm,
+    HypotheseDiagnosticForm,
     HypotheseDiagnosticFormSet,
     TraitementForm,
+    EvolutionForm,
     EvolutionFormSet,
+    EpisodeHistoireMaladieForm,
     EpisodeHistoireMaladieFormSet,
+    ExamenCliniqueBaseForm,
     ExamenPhysiqueForm,
-    
+    FicheRehydratationForm,
+    EvaluationHoraireRehydratationFormSet,
+    TraitementAjustementForm,
+    LigneTraitementFormSet,
+    SerologiesForm,  # Sous-formulaire pour les sérologies de grossesse
 )
-from .models import ObservationMedicale, ExamenPhysique, FicheRehydratation, EvaluationHoraireRehydratation
+from .exam_forms import EXAM_SUBFORMS  # Sous-formulaires d'examen par appareil
+from . import constants as C
 
 
 # ============================================================
@@ -89,7 +107,6 @@ def get_related_instance(observation, related_name):
     """
     if not observation:
         return None
-
     try:
         return getattr(observation, related_name)
     except ObjectDoesNotExist:
@@ -103,10 +120,8 @@ def get_requested_type(data, observation):
     """
     if data:
         return data.get("observation-type_observation") or data.get("type_observation")
-
     if observation:
         return observation.type_observation
-
     return None
 
 
@@ -116,10 +131,8 @@ def should_include_child_sections(requested_type, observation):
     """
     if requested_type == "ENFANT":
         return True
-
     if observation and observation.type_observation == "ENFANT":
         return True
-
     return False
 
 
@@ -384,16 +397,40 @@ def save_exam_forms(base_form, subforms, observation):
 
 @require_GET
 def observation_list(request):
-    observations = ObservationMedicale.objects.all().order_by("-created_at")
+    today = timezone.now().date()
 
+    # Filtres
     q = request.GET.get("q", "").strip()
     observation_type = request.GET.get("type", "").strip()
+    filtre_date = request.GET.get("date_filter", "").strip()
+    statut_suivi = request.GET.get("suivi", "").strip()
 
+    observations = ObservationMedicale.objects.all().order_by("-created_at")
+
+    # Statistiques globales
+    stats = {
+        "total": ObservationMedicale.objects.count(),
+        "total_nn": ObservationMedicale.objects.filter(type_observation="NN").count(),
+        "total_enfant": ObservationMedicale.objects.filter(type_observation="ENFANT").count(),
+        "total_jour": ObservationMedicale.objects.filter(created_at__date=today).count(),
+        "avec_examens": ObservationMedicale.objects.filter(
+            examens_physiques__isnull=False
+        ).distinct().count(),
+        "avec_rehydratation": ObservationMedicale.objects.filter(
+            fiches_rehydratation__isnull=False
+        ).distinct().count(),
+        "avec_traitements": ObservationMedicale.objects.filter(
+            traitements_ajustes__isnull=False
+        ).distinct().count(),
+    }
+
+    # Application des filtres
     if q:
         observations = observations.filter(
             Q(nom__icontains=q)
             | Q(prenoms__icontains=q)
             | Q(numero_dossier__icontains=q)
+            | Q(lit__icontains=q)
             | Q(motif_admission__icontains=q)
             | Q(diagnostic_retenu__icontains=q)
         )
@@ -401,10 +438,43 @@ def observation_list(request):
     if observation_type:
         observations = observations.filter(type_observation=observation_type)
 
+    if filtre_date == "today":
+        observations = observations.filter(created_at__date=today)
+    elif filtre_date == "week":
+        week_ago = today - timezone.timedelta(days=7)
+        observations = observations.filter(created_at__date__gte=week_ago)
+    elif filtre_date == "month":
+        month_ago = today - timezone.timedelta(days=30)
+        observations = observations.filter(created_at__date__gte=month_ago)
+
+    if statut_suivi == "avec_examens":
+        observations = observations.filter(examens_physiques__isnull=False).distinct()
+    elif statut_suivi == "avec_rehydratation":
+        observations = observations.filter(fiches_rehydratation__isnull=False).distinct()
+    elif statut_suivi == "avec_traitements":
+        observations = observations.filter(traitements_ajustes__isnull=False).distinct()
+    elif statut_suivi == "sans_suivi":
+        observations = observations.filter(
+            Q(examens_physiques__isnull=True)
+            & Q(fiches_rehydratation__isnull=True)
+            & Q(traitements_ajustes__isnull=True)
+        ).distinct()
+
+    # Annotations pour les compteurs par observation
+    observations = observations.annotate(
+        nb_examens=Count("examens_physiques", distinct=True),
+        nb_rehydratation=Count("fiches_rehydratation", distinct=True),
+        nb_traitements=Count("traitements_ajustes", distinct=True),
+        nb_episodes=Count("episodes_histoire_maladie", distinct=True),
+    )
+
     context = {
         "observations": observations,
+        "stats": stats,
         "q": q,
         "observation_type": observation_type,
+        "filtre_date": filtre_date,
+        "statut_suivi": statut_suivi,
         "type_choices": C.TYPE_OBSERVATION_CHOICES,
     }
 
@@ -419,24 +489,84 @@ def observation_list(request):
 def observation_detail(request, pk):
     observation = get_object_or_404(ObservationMedicale, pk=pk)
 
-    sections = {}
-    for key, form_class, related_name, child_only in RELATED_FORMS:
-        sections[key] = get_related_instance(observation, related_name)
+    # Récupérer toutes les données associées
+    antecedents_familiaux = get_related_instance(observation, "antecedents_familiaux")
+    grossesse = get_related_instance(observation, "grossesse")
+    accouchement = get_related_instance(observation, "accouchement")
+    alimentation = get_related_instance(observation, "alimentation")
+    vaccination = get_related_instance(observation, "vaccination")
+    contexte = get_related_instance(observation, "contexte_epidemiologique")
+    fiche_sociale = get_related_instance(observation, "fiche_sociale")
+    dpm = get_related_instance(observation, "developpement_psychomoteur")
+    antecedents_personnels = get_related_instance(observation, "antecedents_personnels")
+    examen_clinique = get_related_instance(observation, "examen_clinique")
+    traitement = get_related_instance(observation, "traitement")
 
     episodes = observation.episodes_histoire_maladie.all()
     hypotheses = observation.hypotheses_diagnostiques.all()
     evolutions = observation.evolutions.all()
+    examens_physiques = observation.examens_physiques.all()
+    fiches_rehydratation = observation.fiches_rehydratation.all()
+    traitements_ajustes = observation.traitements_ajustes.all()
+
+    # Dernier traitement actif
+    dernier_traitement = TraitementAjustement.dernier_pour_observation(observation)
+
+    # Statistiques rapides
+    stats = {
+        "nb_examens": examens_physiques.count(),
+        "nb_rehydratations": fiches_rehydratation.count(),
+        "nb_traitements": traitements_ajustes.count(),
+        "nb_episodes": episodes.count(),
+        "dernier_examen": examens_physiques.first(),
+        "derniere_rehydratation": fiches_rehydratation.first(),
+        "dernier_traitement": dernier_traitement,
+    }
 
     context = {
         "observation": observation,
-        "sections": sections,
-        "section_labels": SECTION_LABELS,
+        "antecedents_familiaux": antecedents_familiaux,
+        "grossesse": grossesse,
+        "accouchement": accouchement,
+        "alimentation": alimentation,
+        "vaccination": vaccination,
+        "contexte": contexte,
+        "fiche_sociale": fiche_sociale,
+        "dpm": dpm,
+        "antecedents_personnels": antecedents_personnels,
+        "examen_clinique": examen_clinique,
+        "traitement": traitement,
         "episodes": episodes,
         "hypotheses": hypotheses,
         "evolutions": evolutions,
+        "examens_physiques": examens_physiques,
+        "fiches_rehydratation": fiches_rehydratation,
+        "traitements_ajustes": traitements_ajustes,
+        "dernier_traitement": dernier_traitement,
+        "stats": stats,
     }
 
     return render(request, "patient/observation_detail.html", context)
+
+
+# ============================================================
+# CONFIGURATION DES FORMULAIRES LIÉS
+# ============================================================
+
+RELATED_FORMS_CONFIG = [
+    # (clé dans le contexte, classe de formulaire, related_name sur ObservationMedicale, réservé enfant ?)
+    ("antecedents_familiaux", AntecedentsFamiliauxForm, "antecedents_familiaux", False),
+    ("grossesse", GrossesseForm, "grossesse", False),
+    ("accouchement", AccouchementForm, "accouchement", False),
+    ("alimentation", AlimentationForm, "alimentation", False),
+    ("vaccination", VaccinationForm, "vaccination", False),
+    ("contexte_epidemiologique", ContexteEpidemiologiqueForm, "contexte_epidemiologique", False),
+    ("fiche_sociale", FicheSocialeForm, "fiche_sociale", False),
+    ("developpement_psychomoteur", DeveloppementPsychomoteurForm, "developpement_psychomoteur", True),
+    ("antecedents_personnels", AntecedentsPersonnelsForm, "antecedents_personnels", True),
+    ("examen_clinique", ExamenCliniqueForm, "examen_clinique", False),
+    ("traitement", TraitementForm, "traitement", False),
+]
 
 
 # ============================================================
@@ -444,121 +574,260 @@ def observation_detail(request, pk):
 # ============================================================
 
 @require_http_methods(["GET", "POST"])
+def observation_create(request):
+    """
+    Crée instantanément un brouillon d'observation et redirige vers la page de modification.
+    Cela garantit que l'observation a un ID pour les relations OneToOne et les requêtes AJAX.
+    """
+    obs = ObservationMedicale.objects.create(
+        type_observation="NN",
+        nom="Nouveau Patient (Brouillon)",
+        prenoms="",
+        sexe="M",
+        age_valeur=0,
+        age_unite="jour",
+    )
+    messages.info(request, "Brouillon créé. Remplissez les sections à votre rythme, tout est sauvegardé automatiquement.")
+    return redirect('observation_update', pk=obs.pk)
+
+
+@require_http_methods(["GET", "POST"])
 def observation_form(request, pk=None):
-    existing_observation = None
+    """
+    Vue principale de modification d'une observation médicale.
+    Gère :
+    - La création automatique de brouillon si pk=None
+    - L'affichage par onglets (le template gère la présentation)
+    - La sauvegarde AJAX (retourne du JSON si requête AJAX)
+    - Tous les formulaires liés et formsets
+    """
 
-    if pk:
-        existing_observation = get_object_or_404(ObservationMedicale, pk=pk)
+    # ----------------------------------------------------------
+    # 1. SI AUCUN PK : CRÉER UN BROUILLON ET REDIRIGER
+    # ----------------------------------------------------------
+    if pk is None:
+        obs = ObservationMedicale.objects.create(
+            type_observation="NN",
+            nom="Nouveau Patient (Brouillon)",
+            prenoms="",
+            sexe="M",
+            age_valeur=0,
+            age_unite="jour",
+        )
+        messages.info(
+            request,
+            "Brouillon créé. Remplissez les sections à votre rythme, tout est sauvegardé automatiquement.",
+        )
+        return redirect("patient:observation_update", pk=obs.pk)
 
-    if request.method == "POST":
-        observation_form = ObservationMedicaleForm(
-            request.POST,
-            request.FILES,
-            instance=existing_observation,
-            prefix="observation",
+    # ----------------------------------------------------------
+    # 2. RÉCUPÉRER L'OBSERVATION
+    # ----------------------------------------------------------
+    observation = get_object_or_404(ObservationMedicale, pk=pk)
+    is_ajax = (
+        request.headers.get("x-requested-with") == "XMLHttpRequest"
+        or request.GET.get("ajax")
+    )
+
+    # ----------------------------------------------------------
+    # 3. DÉTERMINER LE TYPE (NN / ENFANT)
+    # ----------------------------------------------------------
+    requested_type = get_requested_type(request.POST if request.method == "POST" else None, observation)
+    include_child_sections = should_include_child_sections(requested_type, observation)
+
+    # ----------------------------------------------------------
+    # 4. CONSTRUIRE LES FORMULAIRES PRINCIPAUX
+    # ----------------------------------------------------------
+    forms = {}
+
+    # Formulaire principal (état civil)
+    forms["observation"] = ObservationMedicaleForm(
+        request.POST or None,
+        instance=observation,
+        prefix="observation",
+    )
+
+    # Formulaires liés (OneToOne)
+    for key, form_class, related_name, child_only in RELATED_FORMS_CONFIG:
+        if child_only and not include_child_sections:
+            continue
+
+        instance = get_related_instance(observation, related_name)
+        forms[key] = form_class(
+            request.POST or None,
+            instance=instance,
+            prefix=key,
         )
 
-        if observation_form.is_valid():
-            candidate_observation = observation_form.save(commit=False)
+    # ----------------------------------------------------------
+    # 5. SOUS-FORMULAIRE : SÉROLOGIES DE GROSSESSE
+    # ----------------------------------------------------------
+    grossesse_instance = get_related_instance(observation, "grossesse")
+    serologies_data = getattr(grossesse_instance, "serologies", {}) if grossesse_instance else {}
 
-            forms = build_forms(
-                observation=candidate_observation,
-                data=request.POST,
-                files=request.FILES,
-                include_observation_form=False,
-            )
-            forms["observation"] = observation_form
+    forms["serologies"] = SerologiesForm(
+        data=request.POST if request.method == "POST" else None,
+        json_data=serologies_data,
+        prefix="serologies",
+    )
 
-            formsets = build_formsets(
-                observation=candidate_observation,
-                data=request.POST,
-                files=request.FILES,
-            )
+    # ----------------------------------------------------------
+    # 6. SOUS-FORMULAIRES : EXAMENS PAR APPAREIL
+    # ----------------------------------------------------------
+    examen_instance = get_related_instance(observation, "examen_clinique")
+    exam_subforms = {}
 
-            examen_base_form, exam_subforms = build_exam_forms(
-                observation=candidate_observation,
-                data=request.POST,
-                files=request.FILES,
-            )
+    for key, form_class, label in EXAM_SUBFORMS:
+        json_data = getattr(examen_instance, key, {}) if examen_instance else {}
+        exam_subforms[key] = form_class(
+            data=request.POST if request.method == "POST" else None,
+            json_data=json_data,
+            prefix=f"exam_{key}",
+        )
 
-            if (
-                forms_are_valid(forms)
-                and formsets_are_valid(formsets)
-                and exam_forms_are_valid(examen_base_form, exam_subforms)
-            ):
-                with transaction.atomic():
-                    candidate_observation.save()
-                    save_related_forms(forms, candidate_observation)
-                    save_exam_forms(examen_base_form, exam_subforms, candidate_observation)
-                    save_formsets(formsets, candidate_observation)
+    # ----------------------------------------------------------
+    # 7. FORMSETS (RELATIONS ONE-TO-MANY)
+    # ----------------------------------------------------------
+    formsets = {
+        "episodes": EpisodeHistoireMaladieFormSet(
+            request.POST or None,
+            instance=observation,
+            prefix="episodes",
+        ),
+        "hypotheses": HypotheseDiagnosticFormSet(
+            request.POST or None,
+            instance=observation,
+            prefix="hypotheses",
+        ),
+        "evolutions": EvolutionFormSet(
+            request.POST or None,
+            instance=observation,
+            prefix="evolutions",
+        ),
+    }
 
-                messages.success(
-                    request,
-                    "L'observation a été enregistrée avec succès.",
-                )
+    # ----------------------------------------------------------
+    # 8. TRAITEMENT DU POST
+    # ----------------------------------------------------------
+    if request.method == "POST":
+        # Vérifier la validité de tous les formulaires
+        all_forms_valid = all(form.is_valid() for form in forms.values())
+        all_exam_valid = all(form.is_valid() for form in exam_subforms.values())
+        all_formsets_valid = all(fs.is_valid() for fs in formsets.values())
 
-                return redirect(
-                    reverse(
-                        "patient:observation_detail",
-                        kwargs={"pk": candidate_observation.pk},
-                    )
-                )
+        if all_forms_valid and all_exam_valid and all_formsets_valid:
+            # ------------------------------------------------------
+            # SAUVEGARDE
+            # ------------------------------------------------------
+            with transaction.atomic():
+                # Observation principale
+                obs = forms["observation"].save()
 
-            messages.error(
-                request,
-                "Le formulaire principal est valide, mais certaines sections contiennent des erreurs.",
-            )
+                # Formulaires liés classiques
+                for key, form in forms.items():
+                    if key == "observation":
+                        continue
 
-            context_observation = candidate_observation
+                    # Cas spécial : sous-formulaire sérologies
+                    if key == "serologies":
+                        if form.has_changed():
+                            grossesse_obj = get_related_instance(obs, "grossesse")
+                            if not grossesse_obj:
+                                grossesse_obj = Grossesse(observation=obs)
+                            grossesse_obj.serologies = form.get_json()
+                            grossesse_obj.save()
+                        continue
+
+                    # Cas normal : formulaires classiques
+                    if form.has_changed():
+                        obj = form.save(commit=False)
+                        obj.observation = obs
+                        obj.save()
+
+                # Examen clinique de base + sous-formulaires par appareil
+                examen_obj = get_related_instance(obs, "examen_clinique")
+                if not examen_obj:
+                    examen_obj = ExamenClinique(observation=obs)
+
+                # Copier les données du formulaire de base (biométrie, signes, etc.)
+                examen_form = forms.get("examen_clinique")
+                if examen_form and examen_form.has_changed():
+                    for field_name, value in examen_form.cleaned_data.items():
+                        setattr(examen_obj, field_name, value)
+
+                # Sauvegarder les sous-formulaires d'examen par appareil
+                for key, form in exam_subforms.items():
+                    if form.has_changed():
+                        setattr(examen_obj, key, form.get_json())
+
+                examen_obj.save()
+
+                # Formsets
+                for fs in formsets.values():
+                    fs.instance = obs
+                    fs.save()
+
+            # ------------------------------------------------------
+            # RÉPONSE AJAX OU REDIRECTION
+            # ------------------------------------------------------
+            if is_ajax:
+                return JsonResponse({
+                    "status": "success",
+                    "message": "Sauvegardé avec succès",
+                })
+
+            messages.success(request, "L'observation a été enregistrée avec succès.")
+            return redirect("patient:observation_detail", pk=obs.pk)
 
         else:
-            forms = build_forms(
-                observation=existing_observation,
-                data=request.POST,
-                files=request.FILES,
-                include_observation_form=True,
-            )
-            forms["observation"] = observation_form
+            # ------------------------------------------------------
+            # ERREURS DE VALIDATION
+            # ------------------------------------------------------
+            if is_ajax:
+                errors = {}
 
-            formsets = build_formsets(
-                observation=existing_observation,
-                data=request.POST,
-                files=request.FILES,
-            )
+                # Erreurs des formulaires classiques
+                for k, v in forms.items():
+                    if v.errors:
+                        errors[k] = v.errors.get_json_data()
 
-            examen_base_form, exam_subforms = build_exam_forms(
-                observation=existing_observation,
-                data=request.POST,
-                files=request.FILES,
-            )
+                # Erreurs des sous-formulaires d'examen
+                for k, v in exam_subforms.items():
+                    if v.errors:
+                        errors[f"exam_{k}"] = v.errors.get_json_data()
+
+                # Erreurs des formsets (structure différente)
+                for k, v in formsets.items():
+                    if v.errors or v.non_form_errors():
+                        errors[k] = {
+                            "form_errors": [
+                                e.get_json_data() if hasattr(e, "get_json_data") else e
+                                for e in v.errors
+                            ],
+                            "non_form_errors": list(v.non_form_errors()),
+                        }
+
+                return JsonResponse(
+                    {"status": "error", "errors": errors},
+                    status=400,
+                )
 
             messages.error(
                 request,
-                "Le formulaire principal contient des erreurs.",
+                "Le formulaire contient des erreurs. Veuillez vérifier les champs.",
             )
 
-            context_observation = existing_observation
-
-    else:
-        forms = build_forms(observation=existing_observation)
-        formsets = build_formsets(observation=existing_observation)
-
-        examen_base_form, exam_subforms = build_exam_forms(
-            observation=existing_observation,
-        )
-
-        context_observation = existing_observation
-
+    # ----------------------------------------------------------
+    # 9. CONTEXTE ET RENDU
+    # ----------------------------------------------------------
     context = {
-        "observation": context_observation,
+        "observation": observation,
         "forms": forms,
         "formsets": formsets,
-        "section_forms": get_section_context(forms),
-        "section_labels": SECTION_LABELS,
-        "examen_base_form": examen_base_form,
-        "exam_sections": get_exam_sections(exam_subforms),
-        "is_update": bool(existing_observation and existing_observation.pk),
-        "title": "Modifier l'observation" if existing_observation else "Nouvelle observation",
+        "title": "Modifier l'observation" if observation else "Nouvelle observation",
+        "is_enfant": include_child_sections,
+        "serologies_form": forms.get("serologies"),
+        "exam_subforms": exam_subforms,
     }
 
     return render(request, "patient/observation_form.html", context)
@@ -586,7 +855,12 @@ from .services.docx_generator import generate_observation_docx
 @require_GET
 def observation_generate_docx(request, pk):
     observation = get_object_or_404(ObservationMedicale, pk=pk)
-    return generate_observation_docx(observation)
+
+    try:
+        return generate_observation_docx(observation)
+    except FileNotFoundError as exc:
+        messages.error(request, str(exc))
+        return redirect("patient:observation_detail", pk=pk)
 
 # ============================================================
 # EXAMENS PHYSIQUES DE SUIVI

@@ -1,5 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr">
+{% load django_bootstrap5 %}
+{% load static %}
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -349,7 +351,19 @@
         .exam-field li {
             margin-bottom: 4px;
         }
+
+        .form-check-input[type="checkbox"] {
+            width: 1.3em;
+            height: 1.3em;
+            cursor: pointer;
+        }
+        .form-check-input[type="checkbox"]:checked {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        
     </style>
+    {% bootstrap_css %}
 </head>
 <body>
     <header class="topbar">
@@ -380,7 +394,8 @@
 
         {% block content %}{% endblock %}
     </main>
-
+    {% bootstrap_javascript %}
+    <script src="{% static 'patient/js/auto_save.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

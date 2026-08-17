@@ -1,447 +1,653 @@
 {% extends "patient/base.html" %}
+{% load static %}
 
 {% block title %}
-    Observations médicales
+    Tableau de bord - Observations
 {% endblock %}
 
 {% block content %}
-    <style>
-        .obs-page {
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --bg-soft: #f8fafc;
-            --border: #e2e8f0;
-            --text: #0f172a;
-            --muted: #64748b;
+<style>
+    /* ================================================ */
+    /* DASHBOARD STYLES */
+    /* ================================================ */
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .dashboard-header h1 {
+        margin: 0;
+        font-size: 26px;
+        color: #1e293b;
+    }
+
+    .dashboard-header .subtitle {
+        color: #64748b;
+        font-size: 14px;
+        margin-top: 4px;
+    }
+
+    /* ================================================ */
+    /* KPI CARDS */
+    /* ================================================ */
+
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .kpi-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 18px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .kpi-card .kpi-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        margin-bottom: 12px;
+    }
+
+    .kpi-card .kpi-value {
+        font-size: 28px;
+        font-weight: 800;
+        color: #1e293b;
+        line-height: 1;
+    }
+
+    .kpi-card .kpi-label {
+        font-size: 12px;
+        color: #64748b;
+        margin-top: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .kpi-blue .kpi-icon { background: #dbeafe; }
+    .kpi-purple .kpi-icon { background: #ede9fe; }
+    .kpi-green .kpi-icon { background: #dcfce7; }
+    .kpi-orange .kpi-icon { background: #ffedd5; }
+    .kpi-cyan .kpi-icon { background: #cffafe; }
+    .kpi-rose .kpi-icon { background: #fce7f3; }
+    .kpi-amber .kpi-icon { background: #fef3c7; }
+
+    /* ================================================ */
+    /* FILTERS BAR */
+    /* ================================================ */
+
+    .filters-bar {
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px 20px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .filters-bar .search-box {
+        flex: 1;
+        min-width: 220px;
+        position: relative;
+    }
+
+    .filters-bar .search-box input {
+        width: 100%;
+        padding: 10px 14px 10px 38px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+
+    .filters-bar .search-box .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 14px;
+    }
+
+    .filters-bar select {
+        padding: 10px 14px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+        background: #fff;
+        min-width: 150px;
+    }
+
+    .filters-bar .filter-btn {
+        padding: 10px 18px;
+        border-radius: 8px;
+        border: none;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .filter-btn-primary {
+        background: #2563eb;
+        color: #fff;
+    }
+
+    .filter-btn-primary:hover {
+        background: #1d4ed8;
+    }
+
+    .filter-btn-reset {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1 !important;
+    }
+
+    .filter-btn-reset:hover {
+        background: #e2e8f0;
+    }
+
+    /* ================================================ */
+    /* TABLE */
+    /* ================================================ */
+
+    .table-card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .table-card .table-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .table-card .table-header h3 {
+        margin: 0;
+        font-size: 16px;
+        color: #1e293b;
+    }
+
+    .table-card .table-header .count-badge {
+        background: #e0e7ff;
+        color: #3730a3;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .obs-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .obs-table thead th {
+        background: #f8fafc;
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #64748b;
+        border-bottom: 1px solid #e2e8f0;
+        white-space: nowrap;
+    }
+
+    .obs-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+        transition: background 0.1s ease;
+    }
+
+    .obs-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .obs-table tbody td {
+        padding: 14px 16px;
+        font-size: 14px;
+        vertical-align: middle;
+    }
+
+    /* ================================================ */
+    /* BADGES & TAGS */
+    /* ================================================ */
+
+    .badge-type {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .badge-nn {
+        background: #cffafe;
+        color: #0e7490;
+    }
+
+    .badge-enfant {
+        background: #ede9fe;
+        color: #6d28d9;
+    }
+
+    .badge-lit {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        background: #f0fdf4;
+        color: #166534;
+        font-weight: 700;
+        font-size: 12px;
+        border: 1px solid #bbf7d0;
+    }
+
+    .badge-dossier {
+        font-family: monospace;
+        font-size: 12px;
+        color: #475569;
+        background: #f1f5f9;
+        padding: 3px 8px;
+        border-radius: 4px;
+    }
+
+    /* ================================================ */
+    /* SUIVI COUNTERS */
+    /* ================================================ */
+
+    .suivi-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .suivi-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .suivi-badge-examen {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .suivi-badge-rehydratation {
+        background: #cffafe;
+        color: #155e75;
+    }
+
+    .suivi-badge-traitement {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .suivi-badge-episode {
+        background: #e0e7ff;
+        color: #3730a3;
+    }
+
+    .suivi-badge-none {
+        background: #f1f5f9;
+        color: #94a3b8;
+    }
+
+    /* ================================================ */
+    /* ACTIONS */
+    /* ================================================ */
+
+    .actions-cell {
+        white-space: nowrap;
+    }
+
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: #475569;
+        font-size: 14px;
+        text-decoration: none;
+        margin-right: 4px;
+        transition: all 0.15s ease;
+    }
+
+    .action-btn:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+    }
+
+    .action-btn-view:hover { color: #2563eb; border-color: #93c5fd; background: #eff6ff; }
+    .action-btn-edit:hover { color: #d97706; border-color: #fcd34d; background: #fffbeb; }
+    .action-btn-exam:hover { color: #16a34a; border-color: #86efac; background: #f0fdf4; }
+    .action-btn-rehyd:hover { color: #0891b2; border-color: #67e8f9; background: #ecfeff; }
+    .action-btn-trait:hover { color: #ea580c; border-color: #fdba74; background: #fff7ed; }
+
+    /* ================================================ */
+    /* EMPTY STATE */
+    /* ================================================ */
+
+    .empty-state {
+        padding: 60px 20px;
+        text-align: center;
+        color: #94a3b8;
+    }
+
+    .empty-state .empty-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+    }
+
+    .empty-state h3 {
+        color: #475569;
+        margin-bottom: 8px;
+    }
+
+    .empty-state p {
+        color: #94a3b8;
+        font-size: 14px;
+    }
+
+    /* ================================================ */
+    /* RESPONSIVE */
+    /* ================================================ */
+
+    @media (max-width: 768px) {
+        .kpi-grid {
+            grid-template-columns: repeat(2, 1fr);
         }
 
-        .obs-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 16px;
-            flex-wrap: wrap;
-            margin-bottom: 22px;
+        .filters-bar {
+            flex-direction: column;
         }
 
-        .obs-header h1 {
-            margin: 0;
-            font-size: 30px;
-            line-height: 1.1;
-        }
-
-        .obs-subtitle {
-            margin: 6px 0 0;
-            color: var(--muted);
-            font-size: 14px;
-        }
-
-        .obs-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 11px 16px;
-            border-radius: 12px;
-            text-decoration: none;
-            font-weight: 700;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
-
-        .obs-btn-primary {
-            color: #fff;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
-        }
-
-        .obs-btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 14px 28px rgba(37, 99, 235, 0.28);
-        }
-
-        .obs-filters {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            align-items: center;
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 14px;
-            margin-bottom: 18px;
-            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
-        }
-
-        .obs-filters input[type="search"],
-        .obs-filters select {
-            min-width: 240px;
-            padding: 10px 12px;
-            border: 1px solid #cbd5e1;
-            border-radius: 10px;
-            background: #fff;
-            color: var(--text);
-            font-size: 14px;
-        }
-
-        .obs-filters input[type="search"]:focus,
-        .obs-filters select:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-        }
-
-        .obs-filters button {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 10px;
-            background: #0f172a;
-            color: #fff;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .obs-filters button:hover {
-            opacity: 0.92;
-        }
-
-        .obs-reset-link {
-            color: var(--muted);
-            text-decoration: none;
-            font-size: 14px;
-        }
-
-        .obs-reset-link:hover {
-            text-decoration: underline;
-        }
-
-        .obs-table-card {
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            overflow: hidden;
-            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.07);
-        }
-
-        .obs-table-responsive {
-            overflow-x: auto;
-        }
-
-        .obs-table {
+        .filters-bar .search-box {
             width: 100%;
-            border-collapse: collapse;
-            min-width: 1250px;
         }
 
-        .obs-table thead th {
-            padding: 13px 12px;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: #475569;
-            background: linear-gradient(180deg, #f8fafc, #eef2f7);
-            border-bottom: 1px solid var(--border);
-            white-space: nowrap;
-            text-align: left;
+        .filters-bar select,
+        .filters-bar .filter-btn {
+            width: 100%;
         }
+    }
+</style>
 
-        .obs-table tbody td {
-            padding: 13px 12px;
-            border-bottom: 1px solid #edf2f7;
-            vertical-align: middle;
-            color: var(--text);
-            font-size: 14px;
-        }
+<!-- ================================================ -->
+<!-- HEADER -->
+<!-- ================================================ -->
+<div class="dashboard-header">
+    <div>
+        <h1>📋 Tableau de bord</h1>
+        <div class="subtitle">Observations médicales pédiatriques</div>
+    </div>
+    <a href="{% url 'patient:observation_create' %}" class="btn btn-primary">
+        ➕ Nouvelle observation
+    </a>
+</div>
 
-        .obs-table tbody tr:hover {
-            background: #f8fbff;
-        }
+<!-- ================================================ -->
+<!-- KPI CARDS -->
+<!-- ================================================ -->
+<div class="kpi-grid">
+    <a href="{% url 'patient:observation_list' %}" class="kpi-card kpi-blue">
+        <div class="kpi-icon">📊</div>
+        <div class="kpi-value">{{ stats.total }}</div>
+        <div class="kpi-label">Total observations</div>
+    </a>
 
-        .mono {
-            font-family: "Courier New", monospace;
-            color: var(--muted);
-            font-weight: 700;
-        }
+    <a href="{% url 'patient:observation_list' %}?type=NN" class="kpi-card kpi-cyan">
+        <div class="kpi-icon">👶</div>
+        <div class="kpi-value">{{ stats.total_nn }}</div>
+        <div class="kpi-label">Nouveau-nés</div>
+    </a>
 
-        .strong {
-            font-weight: 700;
-        }
+    <a href="{% url 'patient:observation_list' %}?type=ENFANT" class="kpi-card kpi-purple">
+        <div class="kpi-icon">🧒</div>
+        <div class="kpi-value">{{ stats.total_enfant }}</div>
+        <div class="kpi-label">Enfants</div>
+    </a>
 
-        .lit-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 44px;
-            padding: 6px 9px;
-            border-radius: 999px;
-            background: #eef2ff;
-            color: #4338ca;
-            border: 1px solid #c7d2fe;
-            font-weight: 800;
-            font-size: 12px;
-        }
+    <a href="{% url 'patient:observation_list' %}?date_filter=today" class="kpi-card kpi-green">
+        <div class="kpi-icon">📅</div>
+        <div class="kpi-value">{{ stats.total_jour }}</div>
+        <div class="kpi-label">Aujourd'hui</div>
+    </a>
 
-        .type-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 6px 9px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 800;
-            white-space: nowrap;
-        }
+    <a href="{% url 'patient:observation_list' %}?suivi=avec_examens" class="kpi-card kpi-amber">
+        <div class="kpi-icon">🩺</div>
+        <div class="kpi-value">{{ stats.avec_examens }}</div>
+        <div class="kpi-label">Avec examens</div>
+    </a>
 
-        .type-nn {
-            background: #ecfeff;
-            color: #0e7490;
-            border: 1px solid #a5f3fc;
-        }
+    <a href="{% url 'patient:observation_list' %}?suivi=avec_rehydratation" class="kpi-card kpi-rose">
+        <div class="kpi-icon">💧</div>
+        <div class="kpi-value">{{ stats.avec_rehydratation }}</div>
+        <div class="kpi-label">Réhydratation</div>
+    </a>
 
-        .type-enfant {
-            background: #f5f3ff;
-            color: #6d28d9;
-            border: 1px solid #ddd6fe;
-        }
+    <a href="{% url 'patient:observation_list' %}?suivi=avec_traitements" class="kpi-card kpi-orange">
+        <div class="kpi-icon">💊</div>
+        <div class="kpi-value">{{ stats.avec_traitements }}</div>
+        <div class="kpi-label">Traitements</div>
+    </a>
+</div>
 
-        .follow-badges {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-
-        .follow-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 8px;
-            border-radius: 999px;
-            background: #f8fafc;
-            border: 1px solid var(--border);
-            color: #475569;
-            font-size: 12px;
-            font-weight: 700;
-            white-space: nowrap;
-        }
-
-        .actions-cell {
-            white-space: nowrap;
-        }
-
-        .action-link {
-            display: inline-block;
-            margin: 2px 6px 2px 0;
-            padding: 6px 9px;
-            border-radius: 9px;
-            font-size: 12px;
-            font-weight: 800;
-            text-decoration: none;
-            border: 1px solid transparent;
-        }
-
-        .action-view {
-            color: #1d4ed8;
-            background: #eff6ff;
-            border-color: #bfdbfe;
-        }
-
-        .action-edit {
-            color: #92400e;
-            background: #fffbeb;
-            border-color: #fde68a;
-        }
-
-        .action-exam {
-            color: #065f46;
-            background: #ecfdf5;
-            border-color: #a7f3d0;
-        }
-
-        .action-rehydratation {
-            color: #155e75;
-            background: #ecfeff;
-            border-color: #a5f3fc;
-        }
-
-        .action-traitement {
-            color: #7c2d12;
-            background: #fff7ed;
-            border-color: #fed7aa;
-        }
-
-        .empty-state {
-            padding: 42px 20px;
-            text-align: center;
-            color: var(--muted);
-        }
-
-        .empty-state strong {
-            display: block;
-            font-size: 18px;
-            color: var(--text);
-            margin-bottom: 6px;
-        }
-    </style>
-
-    <div class="obs-page">
-        <div class="obs-header">
-            <div>
-                <h1>Observations médicales</h1>
-                <div class="obs-subtitle">
-                    Liste des observations pédiatriques : nouveau-nés, nourrissons et enfants.
-                </div>
-            </div>
-
-            <a href="{% url 'patient:observation_create' %}" class="obs-btn obs-btn-primary">
-                + Nouvelle observation
-            </a>
-        </div>
-
-        <form method="get" class="obs-filters">
+<!-- ================================================ -->
+<!-- FILTERS BAR -->
+<!-- ================================================ -->
+<div class="filters-bar">
+    <form method="get" style="display:contents;">
+        <div class="search-box">
+            <span class="search-icon">🔍</span>
             <input
                 type="search"
                 name="q"
                 value="{{ q }}"
                 placeholder="Rechercher : nom, prénom, dossier, lit, motif..."
             >
-
-            <select name="type">
-                <option value="">Tous les types</option>
-                {% for value, label in type_choices %}
-                    <option value="{{ value }}" {% if observation_type == value %}selected{% endif %}>
-                        {{ label }}
-                    </option>
-                {% endfor %}
-            </select>
-
-            <button type="submit">
-                Filtrer
-            </button>
-
-            {% if q or observation_type %}
-                <a href="{% url 'patient:observation_list' %}" class="obs-reset-link">
-                    Réinitialiser
-                </a>
-            {% endif %}
-        </form>
-
-        <div class="obs-table-card">
-            <div class="obs-table-responsive">
-                <table class="obs-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Lit</th>
-                            <th>Nom</th>
-                            <th>Prénoms</th>
-                            <th>Type</th>
-                            <th>Âge</th>
-                            <th>Sexe</th>
-                            <th>Date admission</th>
-                            <th>N° dossier</th>
-                            <th>Suivi</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {% for observation in observations %}
-                            <tr>
-                                <td class="mono">
-                                    {{ observation.pk }}
-                                </td>
-
-                                <td>
-                                    <span class="lit-badge">
-                                        {{ observation.lit|default:"—" }}
-                                    </span>
-                                </td>
-
-                                <td class="strong">
-                                    {{ observation.nom }}
-                                </td>
-
-                                <td>
-                                    {{ observation.prenoms }}
-                                </td>
-
-                                <td>
-                                    {% if observation.type_observation == "NN" %}
-                                        <span class="type-badge type-nn">
-                                            Nouveau-né
-                                        </span>
-                                    {% else %}
-                                        <span class="type-badge type-enfant">
-                                            Enfant
-                                        </span>
-                                    {% endif %}
-                                </td>
-
-                                <td>
-                                    {{ observation.age_display }}
-                                </td>
-
-                                <td>
-                                    {{ observation.get_sexe_display }}
-                                </td>
-
-                                <td>
-                                    {{ observation.date_admission|date:"d/m/Y"|default:"—" }}
-                                </td>
-
-                                <td>
-                                    {{ observation.numero_dossier|default:"—" }}
-                                </td>
-
-                                <td>
-                                    <div class="follow-badges">
-                                        <span class="follow-badge">
-                                            Ex. {{ observation.examens_physiques.count }}
-                                        </span>
-
-                                        <span class="follow-badge">
-                                            Réh. {{ observation.fiches_rehydratation.count }}
-                                        </span>
-
-                                        <span class="follow-badge">
-                                            Trait. {{ observation.traitements_ajustes.count }}
-                                        </span>
-                                    </div>
-                                </td>
-
-                                <td class="actions-cell">
-                                    <a class="action-link action-view" href="{% url 'patient:observation_detail' observation.pk %}">
-                                        Voir
-                                    </a>
-
-                                    <a class="action-link action-edit" href="{% url 'patient:observation_update' observation.pk %}">
-                                        Modifier
-                                    </a>
-
-                                    <a class="action-link action-exam" href="{% url 'patient:examen_physique_list' observation.pk %}">
-                                        Examens
-                                    </a>
-
-                                    <a class="action-link action-rehydratation" href="{% url 'patient:fiche_rehydratation_list' observation.pk %}">
-                                        Réhydratation
-                                    </a>
-
-                                    <a class="action-link action-traitement" href="{% url 'patient:traitement_ajustement_list' observation.pk %}">
-                                        Traitements
-                                    </a>
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="11">
-                                    <div class="empty-state">
-                                        <strong>Aucune observation trouvée</strong>
-                                        Tu peux créer une nouvelle observation ou modifier les filtres.
-                                    </div>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
         </div>
+
+        <select name="type">
+            <option value="">Tous les types</option>
+            {% for value, label in type_choices %}
+                <option value="{{ value }}" {% if observation_type == value %}selected{% endif %}>
+                    {{ label }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <select name="date_filter">
+            <option value="">Toutes les dates</option>
+            <option value="today" {% if filtre_date == "today" %}selected{% endif %}>Aujourd'hui</option>
+            <option value="week" {% if filtre_date == "week" %}selected{% endif %}>7 derniers jours</option>
+            <option value="month" {% if filtre_date == "month" %}selected{% endif %}>30 derniers jours</option>
+        </select>
+
+        <select name="suivi">
+            <option value="">Tous les suivis</option>
+            <option value="avec_examens" {% if statut_suivi == "avec_examens" %}selected{% endif %}>Avec examens</option>
+            <option value="avec_rehydratation" {% if statut_suivi == "avec_rehydratation" %}selected{% endif %}>Avec réhydratation</option>
+            <option value="avec_traitements" {% if statut_suivi == "avec_traitements" %}selected{% endif %}>Avec traitements</option>
+            <option value="sans_suivi" {% if statut_suivi == "sans_suivi" %}selected{% endif %}>Sans suivi</option>
+        </select>
+
+        <button type="submit" class="filter-btn filter-btn-primary">
+            Filtrer
+        </button>
+
+        <a href="{% url 'patient:observation_list' %}" class="filter-btn filter-btn-reset">
+            Réinitialiser
+        </a>
+    </form>
+</div>
+
+<!-- ================================================ -->
+<!-- TABLE -->
+<!-- ================================================ -->
+<div class="table-card">
+    <div class="table-header">
+        <h3>Liste des observations</h3>
+        <span class="count-badge">{{ observations|length }} résultat{{ observations|length|pluralize }}</span>
     </div>
+
+    {% if observations %}
+        <div style="overflow-x:auto;">
+            <table class="obs-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Lit</th>
+                        <th>Patient</th>
+                        <th>Type</th>
+                        <th>Âge</th>
+                        <th>Sexe</th>
+                        <th>Admission</th>
+                        <th>N° Dossier</th>
+                        <th>Suivi</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for obs in observations %}
+                        <tr>
+                            <td>
+                                <span class="badge-dossier">#{{ obs.pk }}</span>
+                            </td>
+
+                            <td>
+                                {% if obs.lit %}
+                                    <span class="badge-lit">{{ obs.lit }}</span>
+                                {% else %}
+                                    <span style="color:#94a3b8;">—</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                <strong>{{ obs.nom }}</strong> {{ obs.prenoms }}
+                            </td>
+
+                            <td>
+                                {% if obs.type_observation == "NN" %}
+                                    <span class="badge-type badge-nn">👶 NN</span>
+                                {% else %}
+                                    <span class="badge-type badge-enfant">🧒 Enfant</span>
+                                {% endif %}
+                            </td>
+
+                            <td>{{ obs.age_display }}</td>
+
+                            <td>{{ obs.get_sexe_display }}</td>
+
+                            <td>{{ obs.date_admission|date:"d/m/Y"|default:"—" }}</td>
+
+                            <td>
+                                {% if obs.numero_dossier %}
+                                    <span class="badge-dossier">{{ obs.numero_dossier }}</span>
+                                {% else %}
+                                    <span style="color:#94a3b8;">—</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                <div class="suivi-badges">
+                                    {% if obs.nb_examens > 0 %}
+                                        <span class="suivi-badge suivi-badge-examen">🩺 {{ obs.nb_examens }}</span>
+                                    {% endif %}
+                                    {% if obs.nb_rehydratation > 0 %}
+                                        <span class="suivi-badge suivi-badge-rehydratation">💧 {{ obs.nb_rehydratation }}</span>
+                                    {% endif %}
+                                    {% if obs.nb_traitements > 0 %}
+                                        <span class="suivi-badge suivi-badge-traitement">💊 {{ obs.nb_traitements }}</span>
+                                    {% endif %}
+                                    {% if obs.nb_episodes > 0 %}
+                                        <span class="suivi-badge suivi-badge-episode">📝 {{ obs.nb_episodes }}</span>
+                                    {% endif %}
+                                    {% if obs.nb_examens == 0 and obs.nb_rehydratation == 0 and obs.nb_traitements == 0 and obs.nb_episodes == 0 %}
+                                        <span class="suivi-badge suivi-badge-none">Aucun suivi</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <td class="actions-cell">
+                                <a href="{% url 'patient:observation_detail' obs.pk %}"
+                                   class="action-btn action-btn-view"
+                                   title="Voir le dossier">
+                                    👁
+                                </a>
+                                <a href="{% url 'patient:observation_update' obs.pk %}"
+                                   class="action-btn action-btn-edit"
+                                   title="Modifier">
+                                    ✏️
+                                </a>
+                                <a href="{% url 'patient:examen_physique_list' obs.pk %}"
+                                   class="action-btn action-btn-exam"
+                                   title="Examens physiques">
+                                    🩺
+                                </a>
+                                <a href="{% url 'patient:fiche_rehydratation_list' obs.pk %}"
+                                   class="action-btn action-btn-rehyd"
+                                   title="Réhydratation">
+                                    💧
+                                </a>
+                                <a href="{% url 'patient:traitement_ajustement_list' obs.pk %}"
+                                   class="action-btn action-btn-trait"
+                                   title="Traitements">
+                                    💊
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <h3>Aucune observation trouvée</h3>
+            <p>Modifiez vos filtres ou créez une nouvelle observation.</p>
+        </div>
+    {% endif %}
+</div>
 {% endblock %}
