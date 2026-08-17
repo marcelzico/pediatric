@@ -469,6 +469,104 @@
     }
 
     /* ================================================ */
+    /* ACCORDÉON APPAREILS (EXAMEN CLINIQUE INITIAL) */
+    /* ================================================ */
+
+    .appareil-block {
+        background: #f8fafc;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        margin-top: 10px;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+    .appareil-block:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .appareil-block-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        color: #334155;
+        transition: background 0.15s;
+        user-select: none;
+    }
+
+    .appareil-block-header:hover {
+        background: #f0fdf4;
+    }
+
+    .appareil-block-header .appareil-icon {
+        margin-right: 8px;
+        font-size: 16px;
+    }
+
+    .appareil-block-body {
+        display: none;
+        padding: 0 16px 14px;
+        animation: slideDown 0.25s ease;
+    }
+
+    .appareil-block.open .appareil-block-body {
+        display: block;
+    }
+
+    .appareil-block .toggle-arrow {
+        font-size: 10px;
+        transition: transform 0.3s;
+        color: #94a3b8;
+    }
+
+    .appareil-block.open .toggle-arrow {
+        transform: rotate(180deg);
+        color: #059669;
+    }
+
+    .categorie-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #059669;
+        margin-top: 12px;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding-bottom: 4px;
+        border-bottom: 2px solid #dcfce7;
+    }
+
+    .categorie-lines {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .categorie-line {
+        font-size: 13px;
+        color: #475569;
+        padding: 6px 10px;
+        background: #fff;
+        border-radius: 6px;
+        border-left: 3px solid #059669;
+    }
+
+    .categorie-line .line-label {
+        font-weight: 600;
+        color: #334155;
+    }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ================================================ */
     /* SMOOTH SCROLL GLOBAL */
     /* ================================================ */
 
@@ -505,8 +603,9 @@
         </div>
         <div class="patient-actions">
             <a href="{% url 'patient:observation_update' observation.pk %}" class="btn">✏️ Modifier</a>
-            <a href="{% url 'patient:examen_physique_create' observation.pk %}" class="btn">🩺 + Examen</a>
+            <a href="{% url 'patient:examen_physique_list' observation.pk %}" class="btn">🩺 + Evolution</a>
             <a href="{% url 'patient:fiche_rehydratation_create' observation.pk %}" class="btn">💧 + Réhydratation</a>
+            <a href="{% url 'patient:examen_paraclinique_list' observation.pk %}" class="btn"> Paraclinique</a>
             <a href="{% url 'patient:observation_generate_docx' observation.pk %}" class="btn btn-primary-action">📄 DOCX</a>
         </div>
     </div>
@@ -996,7 +1095,7 @@
     </div>
 
     <!-- ================================================ -->
-    <!-- TAB: EXAMEN CLINIQUE -->
+    <!-- TAB: EXAMEN CLINIQUE (AVEC ACCORDÉON APPAREILS) -->
     <!-- ================================================ -->
     <div id="tab-examen" class="tab-content-section">
         <div class="section-title">
@@ -1074,7 +1173,7 @@
                 </div>
             {% endif %}
 
-            <!-- ===== EXAMEN PAR APPAREIL (ACCORDÉON) ===== -->
+            <!-- ✅ ACCORDÉON DES EXAMENS PAR APPAREIL -->
             {% if examen_appareils_formatted %}
                 <div class="info-card" style="margin-bottom:20px;">
                     <div class="info-card-header">🔬 Examen détaillé par appareil</div>
@@ -1096,7 +1195,13 @@
                                         {% endif %}
                                         <div class="categorie-lines">
                                             {% for line in categorie.lines %}
-                                                <div class="categorie-line">{{ line }}</div>
+                                                <div class="categorie-line">
+                                                    {% if ":" in line %}
+                                                        <span class="line-label">{{ line|cut:"▸ "|truncatechars:50 }}</span>
+                                                    {% else %}
+                                                        {{ line }}
+                                                    {% endif %}
+                                                </div>
                                             {% endfor %}
                                         </div>
                                     {% endfor %}
@@ -1114,6 +1219,144 @@
             </div>
         {% endif %}
     </div>
+
+    <!-- Sous-tab: Examens physiques -->
+    {% comment %} <div id="tab-suivi-examens" class="tab-content-section active">
+        <div style="margin-bottom:16px; text-align:right;">
+            <a href="{% url 'patient:examen_physique_create' observation.pk %}" class="btn btn-primary" style="padding:8px 14px; font-size:12px;">
+                + Nouvel examen
+            </a>
+        </div>
+
+        {% if examens_physiques_formatted %}
+            <div class="timeline">
+                {% for examen_data in examens_physiques_formatted %}
+                    {% with examen=examen_data.instance %}
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <span class="timeline-date">
+                                    {{ examen.date_heure|date:"d/m/Y H:i" }}
+                                </span>
+                                {% if examen.examine_par %}
+                                    <span class="timeline-badge blue">Par : {{ examen.examine_par }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="timeline-body">
+                                <!-- Constantes rapides -->
+                                <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:10px;">
+                                    {% if examen.temperature_c %}
+                                        <span class="tag tag-orange">🌡 {{ examen.temperature_c }}°C</span>
+                                    {% endif %}
+                                    {% if examen.frequence_cardiaque %}
+                                        <span class="tag tag-red">❤ {{ examen.frequence_cardiaque }} bpm</span>
+                                    {% endif %}
+                                    {% if examen.frequence_respiratoire %}
+                                        <span class="tag tag-blue">🫁 {{ examen.frequence_respiratoire }} cpm</span>
+                                    {% endif %}
+                                    {% if examen.saturation_oxygene %}
+                                        <span class="tag tag-green">O₂ {{ examen.saturation_oxygene }}%</span>
+                                    {% endif %}
+                                    {% if examen.poids_kg %}
+                                        <span class="tag tag-purple">⚖ {{ examen.poids_kg }} kg</span>
+                                    {% endif %}
+                                    {% if examen.tension_arterielle %}
+                                        <span class="tag tag-cyan">🩸 {{ examen.tension_arterielle }} mmHg</span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Signes généraux -->
+                                {% if examen.signes_generaux %}
+                                    <div class="detail-row">
+                                        <span class="detail-label">Signes généraux :</span>
+                                        <span>
+                                            {% for signe in examen.signes_generaux %}
+                                                <span class="tag tag-orange">{{ signe }}</span>
+                                            {% endfor %}
+                                        </span>
+                                    </div>
+                                {% endif %}
+
+                                <!-- Signes fonctionnels -->
+                                {% if examen.signes_fonctionnels %}
+                                    <div class="detail-row">
+                                        <span class="detail-label">Signes fonctionnels :</span>
+                                        <span>
+                                            {% for signe in examen.signes_fonctionnels %}
+                                                <span class="tag tag-blue">{{ signe }}</span>
+                                            {% endfor %}
+                                        </span>
+                                    </div>
+                                {% endif %}
+
+                                <!-- Conclusion -->
+                                {% if examen.conclusion %}
+                                    <div class="detail-row">
+                                        <span class="detail-label">Conclusion :</span>
+                                        <span>{{ examen.conclusion }}</span>
+                                    </div>
+                                {% endif %}
+
+                                <!-- ✅ EXAMENS PAR APPAREIL (ACCORDÉON) -->
+                                {% if examen_data.appareils %}
+                                    <div class="examens-appareils-container">
+                                        <div class="section-subtitle">
+                                            🔬 Examen par appareil
+                                        </div>
+
+                                        {% for appareil in examen_data.appareils %}
+                                            <div class="appareil-block" id="appareil-{{ examen.pk }}-{{ appareil.key }}">
+                                                <div class="appareil-block-header"
+                                                    onclick="toggleDetailAppareil({{ examen.pk }}, '{{ appareil.key }}')">
+                                                    <span>
+                                                        <span class="appareil-icon">{{ appareil.icon }}</span>
+                                                        {{ appareil.title }}
+                                                    </span>
+                                                    <span class="toggle-arrow">▼</span>
+                                                </div>
+
+                                                <div class="appareil-block-body">
+                                                    {% for categorie in appareil.categories %}
+                                                        {% if categorie.title %}
+                                                            <div class="categorie-title">{{ categorie.title }}</div>
+                                                        {% endif %}
+                                                        <div class="categorie-lines">
+                                                            {% for line in categorie.lines %}
+                                                                <div class="categorie-line">
+                                                                    {% if ":" in line %}
+                                                                        <span class="line-label">{{ line|cut:"▸ "|truncatechars:50 }}</span>
+                                                                    {% else %}
+                                                                        {{ line }}
+                                                                    {% endif %}
+                                                                </div>
+                                                            {% endfor %}
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+
+                                <!-- Exceptions -->
+                                {% if examen.exceptions %}
+                                    <div class="detail-row" style="margin-top:8px;">
+                                        <span class="detail-label">Exceptions :</span>
+                                        <span>{{ examen.exceptions }}</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endwith %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="info-card">
+                <div class="info-card-body" style="text-align:center; color:#94a3b8; padding:40px;">
+                    Aucun examen physique enregistré.
+                </div>
+            </div>
+        {% endif %}
+    </div> {% endcomment %}
 
     <!-- ================================================ -->
     <!-- TAB: SUIVI HOSPITALIER -->
@@ -1404,111 +1647,118 @@
 <!-- JAVASCRIPT POUR LES ONGLETS -->
 <!-- ================================================ -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-
-    // ============================================
-    // CONFIGURATION
-    // ============================================
-    const TABS_OFFSET = 80; // Hauteur des onglets sticky + marge
-
-    // ============================================
-    // FONCTION : Scroller vers le contenu des onglets
-    // ============================================
-    function scrollToContent() {
-        const wrapper = document.getElementById('tab-content-wrapper');
-        if (wrapper) {
-            const y = wrapper.getBoundingClientRect().top + window.pageYOffset - TABS_OFFSET;
-            window.scrollTo({
-                top: y,
-                behavior: 'smooth'
-            });
+    function toggleObsDetailAppareil(appareilKey) {
+        const block = document.getElementById('obs-detail-appareil-' + appareilKey);
+        if (block) {
+            block.classList.toggle('open');
         }
     }
 
-    // ============================================
-    // ONGLETS PRINCIPAUX
-    // ============================================
-    const mainTabs = document.querySelectorAll('.dashboard-tabs#main-tabs > .dashboard-tab');
-    const mainSections = document.querySelectorAll('#tab-content-wrapper > .tab-content-section');
+    document.addEventListener('DOMContentLoaded', function() {
 
-    mainTabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-            // Désactiver tous les onglets principaux
-            mainTabs.forEach(t => t.classList.remove('active'));
-            mainSections.forEach(s => s.classList.remove('active'));
+        // ============================================
+        // CONFIGURATION
+        // ============================================
+        const TABS_OFFSET = 80; // Hauteur des onglets sticky + marge
 
-            // Activer l'onglet cliqué
-            this.classList.add('active');
-            const targetId = this.getAttribute('data-tab');
-            const targetSection = document.getElementById(targetId);
-            if (targetSection) {
-                targetSection.classList.add('active');
+        // ============================================
+        // FONCTION : Scroller vers le contenu des onglets
+        // ============================================
+        function scrollToContent() {
+            const wrapper = document.getElementById('tab-content-wrapper');
+            if (wrapper) {
+                const y = wrapper.getBoundingClientRect().top + window.pageYOffset - TABS_OFFSET;
+                window.scrollTo({
+                    top: y,
+                    behavior: 'smooth'
+                });
             }
+        }
 
-            // ✅ SCROLLER AUTOMATIQUEMENT VERS LE CONTENU
-            scrollToContent();
-        });
-    });
+        // ============================================
+        // ONGLETS PRINCIPAUX
+        // ============================================
+        const mainTabs = document.querySelectorAll('.dashboard-tabs#main-tabs > .dashboard-tab');
+        const mainSections = document.querySelectorAll('#tab-content-wrapper > .tab-content-section');
 
-    // ============================================
-    // SOUS-ONGLETS DU SUIVI HOSPITALIER
-    // ============================================
-    const suiviTabs = document.querySelectorAll('#tab-suivi .dashboard-tab');
-    const suiviSections = document.querySelectorAll('#tab-suivi > .tab-content-section');
+        mainTabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Désactiver tous les onglets principaux
+                mainTabs.forEach(t => t.classList.remove('active'));
+                mainSections.forEach(s => s.classList.remove('active'));
 
-    suiviTabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-            suiviTabs.forEach(t => t.classList.remove('active'));
-            suiviSections.forEach(s => s.classList.remove('active'));
+                // Activer l'onglet cliqué
+                this.classList.add('active');
+                const targetId = this.getAttribute('data-tab');
+                const targetSection = document.getElementById(targetId);
+                if (targetSection) {
+                    targetSection.classList.add('active');
+                }
 
-            this.classList.add('active');
-            const targetId = this.getAttribute('data-tab');
-            const targetSection = document.getElementById(targetId);
-            if (targetSection) {
-                targetSection.classList.add('active');
-            }
-
-            // ✅ SCROLLER VERS LE CONTENU DU SOUS-ONGLET
-            scrollToContent();
-        });
-    });
-
-    // ============================================
-    // BOUTON RETOUR EN HAUT (avec vérification)
-    // ============================================
-    const scrollTopBtn = document.getElementById('scroll-top-btn');
-
-    // ✅ Vérifier que le bouton existe avant de l'utiliser
-    if (scrollTopBtn) {
-        // Afficher le bouton quand on scrolle vers le bas
-        window.addEventListener('scroll', function() {
-            if (window.pageYOffset > 300) {
-                scrollTopBtn.classList.add('visible');
-            } else {
-                scrollTopBtn.classList.remove('visible');
-            }
-        });
-
-        // Scroller en haut quand on clique sur le bouton
-        scrollTopBtn.addEventListener('click', function() {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
+                // ✅ SCROLLER AUTOMATIQUEMENT VERS LE CONTENU
+                scrollToContent();
             });
         });
-    }
 
-    // ============================================
-    // NAVIGATION CLAVIER (OPTIONNEL)
-    // ============================================
-    document.addEventListener('keydown', function(e) {
-        // Touche "Home" : retour en haut
-        if (e.key === 'Home' && !e.target.matches('input, textarea, select')) {
-            e.preventDefault();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        // ============================================
+        // SOUS-ONGLETS DU SUIVI HOSPITALIER
+        // ============================================
+        const suiviTabs = document.querySelectorAll('#tab-suivi .dashboard-tab');
+        const suiviSections = document.querySelectorAll('#tab-suivi > .tab-content-section');
+
+        suiviTabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                suiviTabs.forEach(t => t.classList.remove('active'));
+                suiviSections.forEach(s => s.classList.remove('active'));
+
+                this.classList.add('active');
+                const targetId = this.getAttribute('data-tab');
+                const targetSection = document.getElementById(targetId);
+                if (targetSection) {
+                    targetSection.classList.add('active');
+                }
+
+                // ✅ SCROLLER VERS LE CONTENU DU SOUS-ONGLET
+                scrollToContent();
+            });
+        });
+
+        // ============================================
+        // BOUTON RETOUR EN HAUT (avec vérification)
+        // ============================================
+        const scrollTopBtn = document.getElementById('scroll-top-btn');
+
+        // ✅ Vérifier que le bouton existe avant de l'utiliser
+        if (scrollTopBtn) {
+            // Afficher le bouton quand on scrolle vers le bas
+            window.addEventListener('scroll', function() {
+                if (window.pageYOffset > 300) {
+                    scrollTopBtn.classList.add('visible');
+                } else {
+                    scrollTopBtn.classList.remove('visible');
+                }
+            });
+
+            // Scroller en haut quand on clique sur le bouton
+            scrollTopBtn.addEventListener('click', function() {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
         }
-    });
 
-});
+        // ============================================
+        // NAVIGATION CLAVIER (OPTIONNEL)
+        // ============================================
+        document.addEventListener('keydown', function(e) {
+            // Touche "Home" : retour en haut
+            if (e.key === 'Home' && !e.target.matches('input, textarea, select')) {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+
+    });
 </script>
 {% endblock %}

@@ -27,6 +27,7 @@ from .models import (
     EvaluationHoraireRehydratation,
     TraitementAjustement,
     LigneTraitement,
+    ExamenParaclinique,
 
 )
 
@@ -2566,5 +2567,108 @@ EXAM_SUBFORMS = [
     ("genitaux", GenitauxForm, "Appareils génitaux"),
     ("osteoarticulaire", OsteoarticulaireForm, "Appareil ostéo-articulaire"),
 ]
+
+
+# ============================================================
+# EXAMENS PARACLINIQUES
+# ============================================================
+
+class ExamenParacliniqueForm(forms.ModelForm):
+    """
+    Formulaire pour un examen paraclinique.
+    Les choix du nom de l'examen sont dynamiques selon le type.
+    La validation des choices est faite ici, pas dans le modèle.
+    """
+    date_examen = forms.DateField(
+        widget=forms.DateInput(attrs={"type": "date"}),
+        required=False,
+        label="Date de l'examen",
+    )
+
+    date_resultat = forms.DateField(
+        widget=forms.DateInput(attrs={"type": "date"}),
+        required=False,
+        label="Date du résultat",
+    )
+
+    # ✅ Champ sans choices fixe — les choices sont remplies dynamiquement
+    nom_examen = forms.ChoiceField(
+        required=False,
+        label="Nom de l'examen",
+    )
+
+    class Meta:
+        model = ExamenParaclinique
+        fields = [
+            "type_examen",
+            "nom_examen",
+            "nom_examen_autre",
+            "date_examen",
+            "date_resultat",
+            "statut",
+            "resultat",
+            "fichier_resultat",
+            "interpretation",
+            "conclusion",
+            "notes",
+        ]
+        widgets = {
+            "type_examen": forms.RadioSelect,
+            "statut": forms.Select,
+            "resultat": forms.Textarea(attrs={"rows": 4}),
+            "interpretation": forms.Textarea(attrs={"rows": 3}),
+            "conclusion": forms.Textarea(attrs={"rows": 2}),
+            "notes": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Déterminer le type d'examen sélectionné
+        type_examen = None
+        if self.data.get("type_examen"):
+            type_examen = self.data.get("type_examen")
+        elif self.instance.pk and self.instance.type_examen:
+            type_examen = self.instance.type_examen
+
+        # Remplir les choices selon le type
+        if type_examen == "imagerie":
+            self.fields["nom_examen"].choices = [("", "---")] + C.IMAGERIE_CHOICES
+        elif type_examen == "biologie":
+            self.fields["nom_examen"].choices = [("", "---")] + C.BIOLOGIE_CHOICES
+        elif type_examen == "fonctionnel":
+            self.fields["nom_examen"].choices = [("", "---")] + C.FONCTIONNEL_CHOICES
+        elif type_examen == "autre":
+            self.fields["nom_examen"].choices = [("", "---"), ("autre", "Autre")]
+        else:
+            # ✅ Fallback : accepter TOUTE valeur pour éviter l'erreur de validation
+            # quand le type n'est pas encore sélectionné ou en mode édition
+            self.fields["nom_examen"].choices = [("", "--- Choisir un type d'examen d'abord ---")]
+            # Si une valeur existe déjà (mode édition), l'ajouter aux choices
+            if self.instance.pk and self.instance.nom_examen:
+                current_value = self.instance.nom_examen
+                self.fields["nom_examen"].choices += [(current_value, current_value)]
+
+    def clean(self):
+        cleaned_data = super().clean()
+        type_examen = cleaned_data.get("type_examen")
+        nom_examen = cleaned_data.get("nom_examen")
+        nom_examen_autre = cleaned_data.get("nom_examen_autre")
+
+        # Si le type est "autre", le nom_examen_autre est requis
+        if type_examen == "autre" and not nom_examen_autre:
+            self.add_error("nom_examen_autre", "Veuillez préciser le nom de l'examen.")
+
+        return cleaned_data
+    
+
+ExamenParacliniqueFormSet = inlineformset_factory(
+    ObservationMedicale,
+    ExamenParaclinique,
+    form=ExamenParacliniqueForm,
+    extra=2,
+    can_delete=True,
+)
+
 
 

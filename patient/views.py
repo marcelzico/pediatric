@@ -61,6 +61,11 @@ from .forms import (
 from .exam_forms import EXAM_SUBFORMS  # Sous-formulaires d'examen par appareil
 from . import constants as C
 
+
+from .models import ExamenParaclinique
+from .forms import ExamenParacliniqueForm, ExamenParacliniqueFormSet
+
+
 from .exam_forms import (
     PleuroPulmonaireExamenForm,
     CardiovasculaireExamenForm,
@@ -523,7 +528,12 @@ def observation_detail(request, pk):
     # Dernier traitement actif
     dernier_traitement = TraitementAjustement.dernier_pour_observation(observation)
 
-        # Pré-formatter les données des appareils de l'examen clinique
+
+    from .services.docx_generator import format_exam_data
+
+    # Dans la vue observation_detail, après avoir récupéré examen_clinique :
+
+    # Pré-formatter les appareils de l'examen clinique initial
     examen_appareils_formatted = []
     if examen_clinique:
         appareils_list = [
@@ -544,7 +554,6 @@ def observation_detail(request, pk):
                 lines = format_exam_data(data)
 
                 if lines:
-                    # Séparer par catégorie
                     categories = []
                     current_category = None
                     current_lines = []
@@ -580,9 +589,6 @@ def observation_detail(request, pk):
                         "categories": categories,
                     })
 
-    # Ajouter au context
-    
-
     # Statistiques rapides
     stats = {
         "nb_examens": examens_physiques.count(),
@@ -615,7 +621,7 @@ def observation_detail(request, pk):
         "traitements_ajustes": traitements_ajustes,
         "dernier_traitement": dernier_traitement,
         "stats": stats,
-        "examen_appareils_formatted": examen_appareils_formatted,
+        "examen_appareils_formatted" : examen_appareils_formatted,
     }
 
     return render(request, "patient/observation_detail.html", context)
@@ -900,7 +906,11 @@ def observation_form(request, pk=None):
         "is_enfant": include_child_sections,
         "serologies_form": forms.get("serologies"),
         "exam_subforms": exam_subforms,
+        # ✅ AJOUTER CETTE LIGNE pour que le template puisse itérer sur les appareils
+        "exam_subforms_list": EXAM_SUBFORMS,
     }
+
+    return render(request, "patient/observation_form.html", context)
 
     return render(request, "patient/observation_form.html", context)
 
@@ -1635,5 +1645,84 @@ def traitement_ajustement_delete(request, pk):
             kwargs={"observation_pk": observation.pk},
         )
     )
+
+
+
+@require_GET
+def examen_paraclinique_list(request, observation_pk):
+    observation = get_object_or_404(ObservationMedicale, pk=observation_pk)
+    examens = observation.examens_paracliniques.all()
+
+    context = {
+        "observation": observation,
+        "examens": examens,
+    }
+
+    return render(request, "patient/examen_paraclinique_list.html", context)
+
+
+@require_http_methods(["GET", "POST"])
+def examen_paraclinique_create(request, observation_pk):
+    observation = get_object_or_404(ObservationMedicale, pk=observation_pk)
+
+    if request.method == "POST":
+        form = ExamenParacliniqueForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            examen = form.save(commit=False)
+            examen.observation = observation
+            examen.save()
+
+            messages.success(request, "L'examen paraclinique a été enregistré.")
+            return redirect("patient:examen_paraclinique_list", observation_pk=observation.pk)
+        else:
+            messages.error(request, "Le formulaire contient des erreurs.")
+    else:
+        form = ExamenParacliniqueForm()
+
+    context = {
+        "observation": observation,
+        "form": form,
+        "title": "Nouvel examen paraclinique",
+    }
+
+    return render(request, "patient/examen_paraclinique_form.html", context)
+
+
+@require_http_methods(["GET", "POST"])
+def examen_paraclinique_update(request, pk):
+    examen = get_object_or_404(ExamenParaclinique, pk=pk)
+    observation = examen.observation
+
+    if request.method == "POST":
+        form = ExamenParacliniqueForm(request.POST, request.FILES, instance=examen)
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, "L'examen paraclinique a été modifié.")
+            return redirect("patient:examen_paraclinique_list", observation_pk=observation.pk)
+        else:
+            messages.error(request, "Le formulaire contient des erreurs.")
+    else:
+        form = ExamenParacliniqueForm(instance=examen)
+
+    context = {
+        "observation": observation,
+        "form": form,
+        "title": f"Modifier : {examen.nom_examen_display}",
+    }
+
+    return render(request, "patient/examen_paraclinique_form.html", context)
+
+
+@require_POST
+def examen_paraclinique_delete(request, pk):
+    examen = get_object_or_404(ExamenParaclinique, pk=pk)
+    observation_pk = examen.observation_id
+    examen.delete()
+    messages.success(request, "L'examen paraclinique a été supprimé.")
+    return redirect("patient:examen_paraclinique_list", observation_pk=observation_pk)
+
+
 
 

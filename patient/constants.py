@@ -1332,4 +1332,69 @@ FREQUENCE_TRAITEMENT_CHOICES = [
 ]
 
 
+# ============================================================
+# EXAMENS PARACLINIQUES
+# ============================================================
+
+TYPE_EXAMEN_PARACLINIQUE_CHOICES = [
+    ("imagerie", "Imagerie"),
+    ("biologie", "Biologie"),
+    ("fonctionnel", "Examen fonctionnel"),
+    ("autre", "Autre"),
+]
+
+IMAGERIE_CHOICES = [
+    ("radio_thorax", "Radiographie thorax"),
+    ("radio_abdomen", "Radiographie abdomen"),
+    ("radio_cranne", "Radiographie crâne"),
+    ("radio_membres", "Radiographie membres"),
+    ("echo_abdominale", "Échographie abdominale"),
+    ("echo_cardiaque", "Échographie cardiaque"),
+    ("echo_cerebrale", "Échographie cérébrale"),
+    ("scanner", "Scanner (TDM)"),
+    ("irm", "IRM"),
+    ("autre_imagerie", "Autre imagerie"),
+]
+
+BIOLOGIE_CHOICES = [
+    ("nfs", "NFS (Numération Formule Sanguine)"),
+    ("crp", "CRP"),
+    ("vs", "VS (Vitesse de Sédimentation)"),
+    ("glycemie", "Glycémie"),
+    ("ionogramme", "Ionogramme sanguin"),
+    ("uree_creatinine", "Urée / Créatinine"),
+    ("transaminases", "Transaminases (ASAT/ALAT)"),
+    ("bilirubine", "Bilirubine"),
+    ("albumine", "Albumine"),
+    ("proteines_totales", "Protéines totales"),
+    ("electrophorese", "Électrophorèse des protéines"),
+    ("serologie_paludisme", "Sérologie paludisme (GE/Goutte épaisse)"),
+    ("serologie_hiv", "Sérologie HIV"),
+    ("serologie_hepatite", "Sérologie hépatite"),
+    ("serologie_autre", "Autre sérologie"),
+    ("urines", "Analyse d'urines (ECBU)"),
+    ("selles", "Analyse de selles (coproculture)"),
+    ("lcr", "Ponction lombaire (LCR)"),
+    ("hemoculture", "Hémoculture"),
+    ("autre_biologie", "Autre biologie"),
+]
+
+FONCTIONNEL_CHOICES = [
+    ("ecg", "ECG (Électrocardiogramme)"),
+    ("eeg", "EEG (Électroencéphalogramme)"),
+    ("emg", "EMG (Électromyogramme)"),
+    ("spirometrie", "Spirométrie / EFR"),
+    ("ph_metrie", "pH-métrie"),
+    ("autre_fonctionnel", "Autre examen fonctionnel"),
+]
+
+STATUT_EXAMEN_PARACLINIQUE_CHOICES = [
+    ("demande", "Demandé"),
+    ("en_cours", "En cours"),
+    ("resultat_disponible", "Résultat disponible"),
+    ("interprete", "Interprété"),
+]
+
+
+
 

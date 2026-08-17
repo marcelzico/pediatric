@@ -1852,4 +1852,125 @@ class LigneTraitement(models.Model):
         return f"{self.nom} - {self.get_voie_display() if self.voie else ''}"
 
 
+# ============================================================
+# EXAMENS PARACLINIQUES
+# ============================================================
+
+class ExamenParaclinique(models.Model):
+    """
+    Examen paraclinique (imagerie, biologie, fonctionnel, autre).
+    Une observation peut avoir plusieurs examens paracliniques.
+    """
+    observation = models.ForeignKey(
+        ObservationMedicale,
+        on_delete=models.CASCADE,
+        related_name="examens_paracliniques",
+        verbose_name="Observation",
+    )
+
+    type_examen = models.CharField(
+        max_length=20,
+        choices=C.TYPE_EXAMEN_PARACLINIQUE_CHOICES,
+        verbose_name="Type d'examen",
+    )
+
+    nom_examen = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        verbose_name="Nom de l'examen",
+    )
+
+    nom_examen_autre = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name="Autre (préciser)",
+    )
+
+    date_examen = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Date de l'examen",
+    )
+
+    date_resultat = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Date du résultat",
+    )
+
+    statut = models.CharField(
+        max_length=30,
+        choices=C.STATUT_EXAMEN_PARACLINIQUE_CHOICES,
+        default="demande",
+        verbose_name="Statut",
+    )
+
+    resultat = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="Résultat",
+        help_text="Valeurs, mesures, observations...",
+    )
+
+    fichier_resultat = models.FileField(
+        upload_to="examens_paracliniques/",
+        null=True,
+        blank=True,
+        verbose_name="Fichier du résultat",
+        help_text="PDF, image, ou autre fichier du résultat",
+    )
+
+    interpretation = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="Interprétation",
+    )
+
+    conclusion = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="Conclusion",
+    )
+
+    notes = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="Notes",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Examen paraclinique"
+        verbose_name_plural = "Examens paracliniques"
+        ordering = ["-date_examen", "-created_at"]
+
+    def __str__(self):
+        nom = self.get_nom_examen_display() or self.nom_examen_autre or "Examen"
+        return f"{nom} - {self.observation}"
+
+    @property
+    def nom_examen_display(self):
+        """Retourne le nom de l'examen, qu'il soit dans les choices ou en texte libre."""
+        if self.nom_examen_autre:
+            return self.nom_examen_autre
+        
+        if not self.nom_examen:
+            return "Non spécifié"
+        
+        # Chercher le label dans les bonnes constantes selon le type
+        from . import constants as C
+        
+        choices_map = {
+            "imagerie": dict(C.IMAGERIE_CHOICES),
+            "biologie": dict(C.BIOLOGIE_CHOICES),
+            "fonctionnel": dict(C.FONCTIONNEL_CHOICES),
+        }
+        
+        type_choices = choices_map.get(self.type_examen, {})
+        return type_choices.get(self.nom_examen, self.nom_examen)
+
 

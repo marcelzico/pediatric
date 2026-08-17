@@ -1,0 +1,249 @@
+{% extends "patient/base.html" %}
+{% load django_bootstrap5 %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<style>
+    .form-header {
+        background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+        border-radius: 16px;
+        padding: 24px 28px;
+        color: #fff;
+        margin-bottom: 24px;
+    }
+
+    .form-header h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 800;
+    }
+
+    .form-header .subtitle {
+        color: rgba(255,255,255,0.8);
+        font-size: 14px;
+        margin-top: 4px;
+    }
+
+    .form-section {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        padding: 24px;
+        margin-bottom: 20px;
+    }
+
+    .form-section h5 {
+        margin: 0 0 16px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 24px;
+    }
+
+    .form-actions .btn-cancel {
+        padding: 12px 24px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        color: #475569;
+    }
+
+    .form-actions .btn-submit {
+        padding: 12px 32px;
+        border-radius: 8px;
+        border: none;
+        background: #7c3aed;
+        color: #fff;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .form-actions .btn-submit:hover {
+        background: #6d28d9;
+    }
+</style>
+
+<div class="form-header">
+    <h1>🔬 {{ title }}</h1>
+    <div class="subtitle">
+        {{ observation.nom }} {{ observation.prenoms }}
+        | {{ observation.age_display }}
+        | {{ observation.get_type_observation_display }}
+    </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+
+    <div class="form-section">
+        <h5>📋 Informations de l'examen</h5>
+        {% bootstrap_field form.type_examen %}
+        {% bootstrap_field form.nom_examen %}
+        {% bootstrap_field form.nom_examen_autre %}
+        {% bootstrap_field form.date_examen %}
+        {% bootstrap_field form.date_resultat %}
+        {% bootstrap_field form.statut %}
+    </div>
+
+    <div class="form-section">
+        <h5>📝 Résultats et interprétation</h5>
+        {% bootstrap_field form.resultat %}
+        {% bootstrap_field form.fichier_resultat %}
+        {% bootstrap_field form.interpretation %}
+        {% bootstrap_field form.conclusion %}
+        {% bootstrap_field form.notes %}
+    </div>
+
+    <div class="form-actions">
+        <a href="{% url 'patient:examen_paraclinique_list' observation.pk %}" class="btn-cancel">
+            Annuler
+        </a>
+        <button type="submit" class="btn-submit">
+            ✓ Enregistrer
+        </button>
+    </div>
+</form>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ============================================
+    // CHOIX DYNAMIQUES POUR LE NOM DE L'EXAMEN
+    // ============================================
+    const choicesParType = {
+        "imagerie": [
+            ["", "--- Choisir un examen ---"],
+            ["radio_thorax", "Radiographie thorax"],
+            ["radio_abdomen", "Radiographie abdomen"],
+            ["radio_cranne", "Radiographie crâne"],
+            ["radio_membres", "Radiographie membres"],
+            ["echo_abdominale", "Échographie abdominale"],
+            ["echo_cardiaque", "Échographie cardiaque"],
+            ["echo_cerebrale", "Échographie cérébrale"],
+            ["scanner", "Scanner (TDM)"],
+            ["irm", "IRM"],
+            ["autre_imagerie", "Autre imagerie"],
+        ],
+        "biologie": [
+            ["", "--- Choisir un examen ---"],
+            ["nfs", "NFS (Numération Formule Sanguine)"],
+            ["crp", "CRP"],
+            ["vs", "VS (Vitesse de Sédimentation)"],
+            ["glycemie", "Glycémie"],
+            ["ionogramme", "Ionogramme sanguin"],
+            ["uree_creatinine", "Urée / Créatinine"],
+            ["transaminases", "Transaminases (ASAT/ALAT)"],
+            ["bilirubine", "Bilirubine"],
+            ["albumine", "Albumine"],
+            ["proteines_totales", "Protéines totales"],
+            ["electrophorese", "Électrophorèse des protéines"],
+            ["serologie_paludisme", "Sérologie paludisme (GE/Goutte épaisse)"],
+            ["serologie_hiv", "Sérologie HIV"],
+            ["serologie_hepatite", "Sérologie hépatite"],
+            ["serologie_autre", "Autre sérologie"],
+            ["urines", "Analyse d'urines (ECBU)"],
+            ["selles", "Analyse de selles (coproculture)"],
+            ["lcr", "Ponction lombaire (LCR)"],
+            ["hemoculture", "Hémoculture"],
+            ["autre_biologie", "Autre biologie"],
+        ],
+        "fonctionnel": [
+            ["", "--- Choisir un examen ---"],
+            ["ecg", "ECG (Électrocardiogramme)"],
+            ["eeg", "EEG (Électroencéphalogramme)"],
+            ["emg", "EMG (Électromyogramme)"],
+            ["spirometrie", "Spirométrie / EFR"],
+            ["ph_metrie", "pH-métrie"],
+            ["autre_fonctionnel", "Autre examen fonctionnel"],
+        ],
+        "autre": [
+            ["", "--- Choisir un examen ---"],
+            ["autre", "Autre (préciser ci-dessous)"],
+        ],
+    };
+
+    const typeExamenField = document.querySelector('select[name="type_examen"], input[name="type_examen"]');
+    const nomExamenField = document.querySelector('select[name="nom_examen"]');
+    const nomExamenAutreField = document.querySelector('input[name="nom_examen_autre"]');
+
+    function updateNomExamenChoices(selectedType) {
+        if (!nomExamenField) return;
+
+        // Vider le select
+        nomExamenField.innerHTML = '';
+
+        // Remplir avec les choix du type sélectionné
+        const choices = choicesParType[selectedType] || [["", "--- Choisir un type d'examen d'abord ---"]];
+        choices.forEach(([value, label]) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            nomExamenField.appendChild(option);
+        });
+
+        // Afficher/masquer le champ "Autre (préciser)"
+        if (nomExamenAutreField) {
+            const container = nomExamenAutreField.closest('.form-group, .mb-3, div');
+            if (container) {
+                container.style.display = (selectedType === "autre") ? '' : 'none';
+            }
+        }
+    }
+
+    // Écouter le changement du type d'examen
+    if (typeExamenField) {
+        // Cas RadioSelect
+        if (typeExamenField.type === 'radio') {
+            document.querySelectorAll('input[name="type_examen"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    updateNomExamenChoices(this.value);
+                });
+            });
+        }
+        // Cas Select
+        else {
+            typeExamenField.addEventListener('change', function() {
+                updateNomExamenChoices(this.value);
+            });
+        }
+
+        // Initialiser au chargement si un type est déjà sélectionné
+        const checkedRadio = document.querySelector('input[name="type_examen"]:checked');
+        if (checkedRadio) {
+            updateNomExamenChoices(checkedRadio.value);
+        } else if (typeExamenField.value) {
+            updateNomExamenChoices(typeExamenField.value);
+        }
+    }
+
+    // ============================================
+    // AFFICHER LE CHAMP "AUTRE" SEULEMENT SI TYPE = "AUTRE"
+    // ============================================
+    function toggleNomExamenAutre() {
+        const checkedRadio = document.querySelector('input[name="type_examen"]:checked');
+        const selectedType = checkedRadio ? checkedRadio.value : (typeExamenField ? typeExamenField.value : '');
+        
+        if (nomExamenAutreField) {
+            const container = nomExamenAutreField.closest('.form-group, .mb-3, div');
+            if (container) {
+                container.style.display = (selectedType === 'autre') ? '' : 'none';
+            }
+        }
+    }
+
+    toggleNomExamenAutre();
+});
+</script>
+{% endblock %}

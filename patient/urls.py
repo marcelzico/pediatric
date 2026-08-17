@@ -106,4 +106,24 @@ urlpatterns = [
         views.traitement_ajustement_delete,
         name="traitement_ajustement_delete",
     ),
+    path(
+        "observations/<int:observation_pk>/paraclinique/",
+        views.examen_paraclinique_list,
+        name="examen_paraclinique_list",
+    ),
+    path(
+        "observations/<int:observation_pk>/paraclinique/ajouter/",
+        views.examen_paraclinique_create,
+        name="examen_paraclinique_create",
+    ),
+    path(
+        "paraclinique/<int:pk>/modifier/",
+        views.examen_paraclinique_update,
+        name="examen_paraclinique_update",
+    ),
+    path(
+        "paraclinique/<int:pk>/supprimer/",
+        views.examen_paraclinique_delete,
+        name="examen_paraclinique_delete",
+    ),
 ]
