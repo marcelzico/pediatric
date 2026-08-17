@@ -1,163 +1,671 @@
 {% extends "patient/base.html" %}
+{% load exam_tags %}
 
 {% block title %}
     {{ title }}
 {% endblock %}
 
 {% block content %}
-    <style>
-        #examen-physique-form ul {
-            list-style: none;
-            padding-left: 0;
-            margin: 0;
-        }
+<style>
+    .exam-form-header {
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        border-radius: 16px;
+        padding: 24px 28px;
+        color: #fff;
+        margin-bottom: 24px;
+    }
 
-        #examen-physique-form ul li {
-            display: inline-block;
-            margin-right: 10px;
-            margin-bottom: 8px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 6px 10px;
-        }
-    </style>
+    .exam-form-header h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 800;
+    }
 
-    <div class="page-header">
-        <h1>{{ title }}</h1>
+    .exam-form-header .subtitle {
+        color: rgba(255,255,255,0.8);
+        font-size: 14px;
+        margin-top: 6px;
+    }
 
-        <a href="{% url 'patient:examen_physique_list' observation.pk %}" class="btn btn-secondary">
-            Retour à la liste des examens
+    .appareils-tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 2px solid #e2e8f0;
+        margin-bottom: 20px;
+        overflow-x: auto;
+        padding-bottom: 0;
+        flex-wrap: wrap;
+    }
+
+    .appareil-tab {
+        padding: 10px 16px;
+        border: none;
+        background: none;
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        white-space: nowrap;
+        transition: all 0.2s;
+    }
+
+    .appareil-tab:hover { color: #059669; }
+    .appareil-tab.active {
+        color: #059669;
+        border-bottom-color: #059669;
+    }
+
+    .appareil-content { display: none; }
+    .appareil-content.active { display: block; }
+
+    .appareil-section {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 16px;
+        overflow: hidden;
+    }
+
+    .appareil-section-header {
+        padding: 12px 16px;
+        background: #f0fdf4;
+        border-bottom: 1px solid #e2e8f0;
+        font-weight: 700;
+        font-size: 14px;
+        color: #166534;
+    }
+
+    .appareil-section-body { padding: 16px; }
+
+    .field-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+    }
+
+    .field-item {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    /* ✅ Label du champ (au-dessus du champ) */
+    .field-item > label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    /* ✅ Champs texte / select / textarea : pleine largeur */
+    .field-item input[type="text"],
+    .field-item input[type="number"],
+    .field-item input[type="date"],
+    .field-item input[type="datetime-local"],
+    .field-item select,
+    .field-item textarea {
+        padding: 8px 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        font-size: 14px;
+        width: 100%;
+    }
+
+    /* ✅ CORRECTION : Checkboxes et radios NE prennent PAS width:100% */
+    .field-item input[type="checkbox"],
+    .field-item input[type="radio"] {
+        width: auto !important;
+        display: inline-block;
+        margin: 0;
+        cursor: pointer;
+    }
+
+    /* ✅ CORRECTION : Listes de checkboxes/radios (Django rend <ul><li>) */
+    .field-item ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .field-item ul li {
+        display: inline-flex;
+        align-items: center;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 6px 12px;
+        transition: all 0.15s;
+    }
+
+    .field-item ul li:hover {
+        background: #f0fdf4;
+        border-color: #86efac;
+    }
+
+    /* ✅ Label d'option : texte À CÔTÉ de l'input, même ligne */
+    .field-item ul li label {
+        display: inline-flex !important;
+        align-items: center;
+        gap: 6px;
+        text-transform: none !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        color: #334155 !important;
+        cursor: pointer;
+        letter-spacing: normal !important;
+        margin: 0 !important;
+    }
+
+    /* ✅ L'input à l'intérieur du label d'option */
+    .field-item ul li label input {
+        width: auto !important;
+        margin: 0 !important;
+        cursor: pointer;
+    }
+
+    /* ✅ Option cochée : mise en évidence */
+    .field-item ul li:has(input:checked) {
+        background: #f0fdf4;
+        border-color: #059669;
+    }
+
+    .field-item ul li:has(input:checked) label {
+        color: #059669 !important;
+        font-weight: 600 !important;
+    }
+
+    .field-item .error-msg {
+        color: #dc2626;
+        font-size: 12px;
+    }
+
+    .main-form-section {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .main-form-section h3 {
+        margin: 0 0 16px;
+        font-size: 16px;
+        color: #1e293b;
+    }
+
+    .appareil-nav {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+        padding-top: 16px;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .appareil-nav button {
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .appareil-nav button:hover {
+        background: #f0fdf4;
+        border-color: #059669;
+        color: #059669;
+    }
+
+    .submit-section {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 2px solid #e2e8f0;
+    }
+
+    .submit-section .btn-cancel {
+        padding: 12px 24px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        color: #475569;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .submit-section .btn-submit {
+        padding: 12px 32px;
+        border-radius: 8px;
+        border: none;
+        background: #059669;
+        color: #fff;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .submit-section .btn-submit:hover { background: #047857; }
+</style>
+
+<!-- Header -->
+<div class="exam-form-header">
+    <h1>🩺 {{ title }}</h1>
+    <div class="subtitle">
+        Patient : {{ observation.nom }} {{ observation.prenoms }}
+        | {{ observation.age_display }}
+        | {{ observation.get_type_observation_display }}
+    </div>
+</div>
+
+<form method="post" novalidate>
+    {% csrf_token %}
+
+    <!-- ============================================ -->
+    <!-- SECTION PRINCIPALE : PARAMÈTRES VITAUX -->
+    <!-- ============================================ -->
+    <div class="main-form-section">
+        <h3>📋 Paramètres vitaux et signes cliniques</h3>
+        <div class="field-grid">
+            <div class="field-item">
+                <label for="{{ form.date_heure.id_for_label }}">{{ form.date_heure.label }}</label>
+                {{ form.date_heure }}
+                {% if form.date_heure.errors %}<span class="error-msg">{{ form.date_heure.errors.0 }}</span>{% endif %}
+            </div>
+            <div class="field-item">
+                <label for="{{ form.examine_par.id_for_label }}">{{ form.examine_par.label }}</label>
+                {{ form.examine_par }}
+            </div>
+            <div class="field-item">
+                <label for="{{ form.poids_kg.id_for_label }}">{{ form.poids_kg.label }}</label>
+                {{ form.poids_kg }}
+            </div>
+            <div class="field-item">
+                <label for="{{ form.temperature_c.id_for_label }}">{{ form.temperature_c.label }}</label>
+                {{ form.temperature_c }}
+                {% if form.temperature_c.errors %}<span class="error-msg">{{ form.temperature_c.errors.0 }}</span>{% endif %}
+            </div>
+            <div class="field-item">
+                <label for="{{ form.frequence_respiratoire.id_for_label }}">{{ form.frequence_respiratoire.label }}</label>
+                {{ form.frequence_respiratoire }}
+            </div>
+            <div class="field-item">
+                <label for="{{ form.frequence_cardiaque.id_for_label }}">{{ form.frequence_cardiaque.label }}</label>
+                {{ form.frequence_cardiaque }}
+            </div>
+            <div class="field-item">
+                <label for="{{ form.tension_arterielle.id_for_label }}">{{ form.tension_arterielle.label }}</label>
+                {{ form.tension_arterielle }}
+            </div>
+            <div class="field-item">
+                <label for="{{ form.saturation_oxygene.id_for_label }}">{{ form.saturation_oxygene.label }}</label>
+                {{ form.saturation_oxygene }}
+                {% if form.saturation_oxygene.errors %}<span class="error-msg">{{ form.saturation_oxygene.errors.0 }}</span>{% endif %}
+            </div>
+            <div class="field-item">
+                <label for="{{ form.glycelie.id_for_label }}">{{ form.glycelie.label }}</label>
+                {{ form.glycelie }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Signes généraux -->
+    <div class="main-form-section">
+        <h3>🌡 Signes généraux</h3>
+        <div class="field-grid">
+            <div class="field-item">
+                {{ form.signes_generaux }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Signes fonctionnels -->
+    <div class="main-form-section">
+        <h3>📝 Signes fonctionnels</h3>
+        <div class="field-grid">
+            <div class="field-item">
+                {{ form.signes_fonctionnels }}
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- EXAMENS PAR APPAREIL (ONGLETS) -->
+    <!-- ============================================ -->
+    <div class="main-form-section">
+        <h3>🔬 Examen détaillé par appareil</h3>
+
+        <!-- Onglets -->
+        <div class="appareils-tabs" id="appareils-tabs">
+            {% for key, form_class, label in exam_subforms_list %}
+                <button type="button"
+                        class="appareil-tab {% if forloop.first %}active{% endif %}"
+                        data-tab="appareil-{{ key }}">
+                    {% if key == "pleuropulmonaire" %}🫁
+                    {% elif key == "cardiovasculaire" %}❤️
+                    {% elif key == "digestif" %}🫃
+                    {% elif key == "neurologique" %}🧠
+                    {% elif key == "orl" %}👂
+                    {% elif key == "cutaneomuqueux" %}🖐
+                    {% elif key == "genitaux" %}⚧
+                    {% elif key == "osteoarticulaire" %}🦴
+                    {% endif %}
+                    {{ label }}
+                </button>
+            {% endfor %}
+        </div>
+
+        <!-- Contenu des onglets -->
+        {% for key, form_class, label in exam_subforms_list %}
+            {% with subform=exam_subforms|get_item:key %}
+                <div id="appareil-{{ key }}" class="appareil-content {% if forloop.first %}active{% endif %}">
+
+                    <!-- ▸ Inspection -->
+                    {% with inspection_fields=subform|fields_by_prefix:"inspection_" %}
+                        {% if inspection_fields %}
+                            <div class="appareil-section">
+                                <div class="appareil-section-header">▸ Inspection</div>
+                                <div class="appareil-section-body">
+                                    <div class="field-grid">
+                                        {% for field in inspection_fields %}
+                                            <div class="field-item">
+                                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                                {{ field }}
+                                                {% if field.errors %}<span class="error-msg">{{ field.errors.0 }}</span>{% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+
+                    <!-- ▸ Palpation -->
+                    {% with palpation_fields=subform|fields_by_prefix:"palpation_" %}
+                        {% if palpation_fields %}
+                            <div class="appareil-section">
+                                <div class="appareil-section-header">▸ Palpation</div>
+                                <div class="appareil-section-body">
+                                    <div class="field-grid">
+                                        {% for field in palpation_fields %}
+                                            <div class="field-item">
+                                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                                {{ field }}
+                                                {% if field.errors %}<span class="error-msg">{{ field.errors.0 }}</span>{% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+
+                    <!-- ▸ Percussion -->
+                    {% with percussion_fields=subform|fields_by_prefix:"percussion_" %}
+                        {% if percussion_fields %}
+                            <div class="appareil-section">
+                                <div class="appareil-section-header">▸ Percussion</div>
+                                <div class="appareil-section-body">
+                                    <div class="field-grid">
+                                        {% for field in percussion_fields %}
+                                            <div class="field-item">
+                                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                                {{ field }}
+                                                {% if field.errors %}<span class="error-msg">{{ field.errors.0 }}</span>{% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+
+                    <!-- ▸ Auscultation -->
+                    {% with auscultation_fields=subform|fields_by_prefix:"auscultation_" %}
+                        {% if auscultation_fields %}
+                            <div class="appareil-section">
+                                <div class="appareil-section-header">▸ Auscultation</div>
+                                <div class="appareil-section-body">
+                                    <div class="field-grid">
+                                        {% for field in auscultation_fields %}
+                                            <div class="field-item">
+                                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                                {{ field }}
+                                                {% if field.errors %}<span class="error-msg">{{ field.errors.0 }}</span>{% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+
+                    <!-- ▸ Émission (Digestif) -->
+                    {% with emission_fields=subform|fields_by_prefix:"emission_" %}
+                        {% if emission_fields %}
+                            <div class="appareil-section">
+                                <div class="appareil-section-header">▸ Émission</div>
+                                <div class="appareil-section-body">
+                                    <div class="field-grid">
+                                        {% for field in emission_fields %}
+                                            <div class="field-item">
+                                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                                {{ field }}
+                                                {% if field.errors %}<span class="error-msg">{{ field.errors.0 }}</span>{% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+
+                    <!-- ▸ Réflexes (Neurologique) -->
+                    {% with reflexes_fields=subform|fields_by_prefix:"reflexes_" %}
+                        {% if reflexes_fields %}
+                            <div class="appareil-section">
+                                <div class="appareil-section-header">▸ Réflexes</div>
+                                <div class="appareil-section-body">
+                                    <div class="field-grid">
+                                        {% for field in reflexes_fields %}
+                                            <div class="field-item">
+                                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                                {{ field }}
+                                                {% if field.errors %}<span class="error-msg">{{ field.errors.0 }}</span>{% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+
+                    <!-- ▸ Chez la fille (Génitaux) -->
+                    {% with fille_fields=subform|fields_by_prefix:"fille_" %}
+                        {% if fille_fields %}
+                            <div class="appareil-section">
+                                <div class="appareil-section-header">👧 Chez la fille</div>
+                                <div class="appareil-section-body">
+                                    <div class="field-grid">
+                                        {% for field in fille_fields %}
+                                            <div class="field-item">
+                                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                                {{ field }}
+                                                {% if field.errors %}<span class="error-msg">{{ field.errors.0 }}</span>{% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+
+                    <!-- ▸ Chez le garçon (Génitaux) -->
+                    {% with garcon_fields=subform|fields_by_prefix:"garcon_" %}
+                        {% if garcon_fields %}
+                            <div class="appareil-section">
+                                <div class="appareil-section-header">👦 Chez le garçon</div>
+                                <div class="appareil-section-body">
+                                    <div class="field-grid">
+                                        {% for field in garcon_fields %}
+                                            <div class="field-item">
+                                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                                {{ field }}
+                                                {% if field.errors %}<span class="error-msg">{{ field.errors.0 }}</span>{% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+
+                    <!-- ▸ Champs directs (Ostéo-articulaire : ms, mi, rachis, hanche_lch) -->
+                    {% with direct_fields=subform|fields_by_prefix:"ms" %}
+                        {% if direct_fields %}
+                            <div class="appareil-section">
+                                <div class="appareil-section-header">▸ Ostéo-articulaire</div>
+                                <div class="appareil-section-body">
+                                    <div class="field-grid">
+                                        {% for field in subform %}
+                                            {% if field.name == "ms" or field.name == "mi" or field.name == "rachis" or field.name == "hanche_lch" %}
+                                                <div class="field-item">
+                                                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                                    {{ field }}
+                                                    {% if field.errors %}<span class="error-msg">{{ field.errors.0 }}</span>{% endif %}
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+
+                    <!-- 📝 Exceptions / Conclusion -->
+                    {% with exceptions_fields=subform|fields_by_prefix:"exceptions" %}
+                        {% with conclusion_fields=subform|fields_by_prefix:"conclusion" %}
+                            {% if exceptions_fields or conclusion_fields %}
+                                <div class="appareil-section">
+                                    <div class="appareil-section-header">📝 Exceptions / Conclusion</div>
+                                    <div class="appareil-section-body">
+                                        <div class="field-grid">
+                                            {% for field in exceptions_fields %}
+                                                <div class="field-item">
+                                                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                                    {{ field }}
+                                                </div>
+                                            {% endfor %}
+                                            {% for field in conclusion_fields %}
+                                                <div class="field-item">
+                                                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                                    {{ field }}
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+                    {% endwith %}
+
+                    <!-- Navigation entre appareils -->
+                    <div class="appareil-nav">
+                        {% if not forloop.first %}
+                            <button type="button" class="btn-prev-appareil">← Appareil précédent</button>
+                        {% else %}
+                            <span></span>
+                        {% endif %}
+                        {% if not forloop.last %}
+                            <button type="button" class="btn-next-appareil">Appareil suivant →</button>
+                        {% else %}
+                            <span></span>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endwith %}
+        {% endfor %}
+    </div>
+
+    <!-- Exceptions / Conclusion générales -->
+    <div class="main-form-section">
+        <h3>📝 Exceptions / Conclusion générale</h3>
+        <div class="field-grid">
+            <div class="field-item">
+                <label for="{{ form.exceptions.id_for_label }}">{{ form.exceptions.label }}</label>
+                {{ form.exceptions }}
+            </div>
+            <div class="field-item">
+                <label for="{{ form.conclusion.id_for_label }}">{{ form.conclusion.label }}</label>
+                {{ form.conclusion }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Boutons de soumission -->
+    <div class="submit-section">
+        <a href="{% url 'patient:examen_physique_list' observation.pk %}" class="btn-cancel">
+            Annuler
         </a>
+        <button type="submit" class="btn-submit">
+            ✅ Enregistrer l'examen
+        </button>
     </div>
+</form>
 
-    <div class="card">
-        <p>
-            <strong>Patient :</strong>
-            {{ observation.nom }} {{ observation.prenoms }}
-        </p>
+<!-- JavaScript pour la navigation entre onglets -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tabs = document.querySelectorAll('.appareil-tab');
+    const contents = document.querySelectorAll('.appareil-content');
 
-        <p>
-            <strong>Type :</strong>
-            {{ observation.get_type_observation_display }}
-            |
-            <strong>Âge :</strong>
-            {{ observation.age_display }}
-            |
-            <strong>N° dossier :</strong>
-            {{ observation.numero_dossier|default:"-" }}
-        </p>
-    </div>
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            const targetContent = document.getElementById(targetId);
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
+        });
+    });
 
-    <form method="post" novalidate id="examen-physique-form">
-        {% csrf_token %}
+    document.querySelectorAll('.btn-next-appareil').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const currentContent = this.closest('.appareil-content');
+            const nextContent = currentContent.nextElementSibling;
+            if (nextContent && nextContent.classList.contains('appareil-content')) {
+                const targetTab = document.querySelector('[data-tab="' + nextContent.id + '"]');
+                if (targetTab) targetTab.click();
+            }
+        });
+    });
 
-        {% if form.non_field_errors %}
-            <div class="alert alert-error">
-                {{ form.non_field_errors }}
-            </div>
-        {% endif %}
-
-        <div class="card">
-            <h2>Informations générales</h2>
-
-            <div class="form-grid">
-                <p>
-                    {{ form.date_heure.label_tag }}
-                    {{ form.date_heure }}
-                    {{ form.date_heure.errors }}
-                </p>
-
-                <p>
-                    {{ form.examine_par.label_tag }}
-                    {{ form.examine_par }}
-                    {{ form.examine_par.errors }}
-                </p>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>Constantes</h2>
-
-            <div class="form-grid">
-                <p>
-                    {{ form.poids_kg.label_tag }}
-                    {{ form.poids_kg }}
-                    {{ form.poids_kg.errors }}
-                </p>
-
-                <p>
-                    {{ form.temperature_c.label_tag }}
-                    {{ form.temperature_c }}
-                    {{ form.temperature_c.errors }}
-                </p>
-
-                <p>
-                    {{ form.frequence_respiratoire.label_tag }}
-                    {{ form.frequence_respiratoire }}
-                    {{ form.frequence_respiratoire.errors }}
-                </p>
-
-                <p>
-                    {{ form.frequence_cardiaque.label_tag }}
-                    {{ form.frequence_cardiaque }}
-                    {{ form.frequence_cardiaque.errors }}
-                </p>
-
-                <p>
-                    {{ form.tension_arterielle.label_tag }}
-                    {{ form.tension_arterielle }}
-                    {{ form.tension_arterielle.errors }}
-                </p>
-
-                <p>
-                    {{ form.saturation_oxygene.label_tag }}
-                    {{ form.saturation_oxygene }}
-                    {{ form.saturation_oxygene.errors }}
-                </p>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>Signes généraux</h2>
-
-            {{ form.signes_generaux.errors }}
-            {{ form.signes_generaux }}
-        </div>
-
-        <div class="card">
-            <h2>Signes fonctionnels</h2>
-
-            {{ form.signes_fonctionnels.errors }}
-            {{ form.signes_fonctionnels }}
-        </div>
-
-        <div class="card">
-            <h2>Conclusion</h2>
-
-            <div class="form-grid">
-                <p>
-                    {{ form.exceptions.label_tag }}
-                    {{ form.exceptions }}
-                    {{ form.exceptions.errors }}
-                </p>
-
-                <p>
-                    {{ form.conclusion.label_tag }}
-                    {{ form.conclusion }}
-                    {{ form.conclusion.errors }}
-                </p>
-            </div>
-        </div>
-
-        <div class="actions">
-            <button type="submit" class="btn btn-primary">
-                Enregistrer
-            </button>
-
-            <a href="{% url 'patient:examen_physique_list' observation.pk %}" class="btn btn-secondary">
-                Annuler
-            </a>
-        </div>
-    </form>
+    document.querySelectorAll('.btn-prev-appareil').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const currentContent = this.closest('.appareil-content');
+            const prevContent = currentContent.previousElementSibling;
+            if (prevContent && prevContent.classList.contains('appareil-content')) {
+                const targetTab = document.querySelector('[data-tab="' + prevContent.id + '"]');
+                if (targetTab) targetTab.click();
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

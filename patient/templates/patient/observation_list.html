@@ -544,7 +544,6 @@
                         <th>Âge</th>
                         <th>Sexe</th>
                         <th>Admission</th>
-                        <th>N° Dossier</th>
                         <th>Suivi</th>
                         <th>Actions</th>
                     </tr>
@@ -581,14 +580,6 @@
                             <td>{{ obs.get_sexe_display }}</td>
 
                             <td>{{ obs.date_admission|date:"d/m/Y"|default:"—" }}</td>
-
-                            <td>
-                                {% if obs.numero_dossier %}
-                                    <span class="badge-dossier">{{ obs.numero_dossier }}</span>
-                                {% else %}
-                                    <span style="color:#94a3b8;">—</span>
-                                {% endif %}
-                            </td>
 
                             <td>
                                 <div class="suivi-badges">

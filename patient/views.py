@@ -61,6 +61,17 @@ from .forms import (
 from .exam_forms import EXAM_SUBFORMS  # Sous-formulaires d'examen par appareil
 from . import constants as C
 
+from .exam_forms import (
+    PleuroPulmonaireExamenForm,
+    CardiovasculaireExamenForm,
+    DigestifExamenForm,
+    NeurologiqueExamenForm,
+    ORLExamenForm,
+    CutaneomuqueuxExamenForm,
+    GenitauxExamenForm,
+    OsteoarticulaireExamenForm,
+)
+
 
 # ============================================================
 # CONFIGURATION DES SECTIONS
@@ -512,6 +523,66 @@ def observation_detail(request, pk):
     # Dernier traitement actif
     dernier_traitement = TraitementAjustement.dernier_pour_observation(observation)
 
+        # Pré-formatter les données des appareils de l'examen clinique
+    examen_appareils_formatted = []
+    if examen_clinique:
+        appareils_list = [
+            ("pleuropulmonaire", "Appareil Pleuropulmonaire", "🫁"),
+            ("cardiovasculaire", "Appareil Cardiovasculaire", "❤️"),
+            ("digestif", "Appareil Digestif", "🫃"),
+            ("neurologique", "Appareil Neurologique", "🧠"),
+            ("orl", "Sphère ORL (Tête et Cou)", "👂"),
+            ("cutaneomuqueux", "Revêtement Cutanéomuqueux", "🖐"),
+            ("genitaux", "Appareils Génitaux", "⚧"),
+            ("osteoarticulaire", "Appareil Ostéo-Articulaire", "🦴"),
+        ]
+
+        for appareil_key, appareil_title, appareil_icon in appareils_list:
+            data = getattr(examen_clinique, appareil_key, None)
+
+            if data and isinstance(data, dict):
+                lines = format_exam_data(data)
+
+                if lines:
+                    # Séparer par catégorie
+                    categories = []
+                    current_category = None
+                    current_lines = []
+
+                    for line in lines:
+                        if line.startswith("▸") or line.startswith("Chez"):
+                            if current_category and current_lines:
+                                categories.append({
+                                    "title": current_category,
+                                    "lines": current_lines,
+                                })
+                            current_category = line
+                            current_lines = []
+                        else:
+                            current_lines.append(line)
+
+                    if current_category and current_lines:
+                        categories.append({
+                            "title": current_category,
+                            "lines": current_lines,
+                        })
+
+                    if not categories and lines:
+                        categories.append({
+                            "title": "",
+                            "lines": lines,
+                        })
+
+                    examen_appareils_formatted.append({
+                        "key": appareil_key,
+                        "title": appareil_title,
+                        "icon": appareil_icon,
+                        "categories": categories,
+                    })
+
+    # Ajouter au context
+    
+
     # Statistiques rapides
     stats = {
         "nb_examens": examens_physiques.count(),
@@ -544,6 +615,7 @@ def observation_detail(request, pk):
         "traitements_ajustes": traitements_ajustes,
         "dernier_traitement": dernier_traitement,
         "stats": stats,
+        "examen_appareils_formatted": examen_appareils_formatted,
     }
 
     return render(request, "patient/observation_detail.html", context)
@@ -866,17 +938,39 @@ def observation_generate_docx(request, pk):
 # EXAMENS PHYSIQUES DE SUIVI
 # ============================================================
 
-@require_GET
-def examen_physique_list(request, observation_pk):
-    observation = get_object_or_404(ObservationMedicale, pk=observation_pk)
-    examens = observation.examens_physiques.all()
+# Liste des sous-formulaires d'appareils
+EXAM_SUBFORMS_LIST = [
+    ("pleuropulmonaire", PleuroPulmonaireExamenForm, "Appareil Pleuropulmonaire"),
+    ("cardiovasculaire", CardiovasculaireExamenForm, "Appareil Cardiovasculaire"),
+    ("digestif", DigestifExamenForm, "Appareil Digestif"),
+    ("neurologique", NeurologiqueExamenForm, "Appareil Neurologique"),
+    ("orl", ORLExamenForm, "Sphère ORL (Tête et Cou)"),
+    ("cutaneomuqueux", CutaneomuqueuxExamenForm, "Revêtement Cutanéomuqueux"),
+    ("genitaux", GenitauxExamenForm, "Appareils Génitaux"),
+    ("osteoarticulaire", OsteoarticulaireExamenForm, "Appareil Ostéo-Articulaire"),
+]
 
-    context = {
-        "observation": observation,
-        "examens": examens,
-    }
 
-    return render(request, "patient/examen_physique_list.html", context)
+def build_exam_subforms(examen_instance=None, data=None, files=None):
+    """
+    Construit les sous-formulaires d'appareils pour un examen physique.
+    """
+    subforms = {}
+    donnees_appareils = {}
+
+    if examen_instance and examen_instance.donnees_appareils:
+        donnees_appareils = examen_instance.donnees_appareils
+
+    for key, form_class, label in EXAM_SUBFORMS_LIST:
+        json_data = donnees_appareils.get(key, {})
+        subforms[key] = form_class(
+            data=data,
+            files=files,
+            json_data=json_data,
+            prefix=f"exam_{key}",
+        )
+
+    return subforms
 
 
 @require_http_methods(["GET", "POST"])
@@ -884,37 +978,41 @@ def examen_physique_create(request, observation_pk):
     observation = get_object_or_404(ObservationMedicale, pk=observation_pk)
 
     if request.method == "POST":
-        form = ExamenPhysiqueForm(request.POST)
+        form = ExamenPhysiqueForm(request.POST, request.FILES)
+        exam_subforms = build_exam_subforms(data=request.POST, files=request.FILES)
 
-        if form.is_valid():
+        # Vérifier la validité de tous les formulaires
+        all_valid = form.is_valid()
+        for key, subform in exam_subforms.items():
+            if not subform.is_valid():
+                all_valid = False
+
+        if all_valid:
             examen = form.save(commit=False)
             examen.observation = observation
+
+            # Combiner les données des sous-formulaires dans donnees_appareils
+            donnees_appareils = {}
+            for key, subform in exam_subforms.items():
+                donnees_appareils[key] = subform.get_json()
+
+            examen.donnees_appareils = donnees_appareils
             examen.save()
 
-            messages.success(
-                request,
-                "L'examen physique de suivi a été enregistré.",
-            )
-
-            return redirect(
-                reverse(
-                    "patient:examen_physique_list",
-                    kwargs={"observation_pk": observation.pk},
-                )
-            )
-
-        messages.error(
-            request,
-            "Le formulaire contient des erreurs.",
-        )
-
+            messages.success(request, "L'examen physique a été enregistré avec succès.")
+            return redirect("patient:examen_physique_list", observation_pk=observation.pk)
+        else:
+            messages.error(request, "Le formulaire contient des erreurs.")
     else:
         form = ExamenPhysiqueForm()
+        exam_subforms = build_exam_subforms()
 
     context = {
         "observation": observation,
         "form": form,
-        "title": "Ajouter un examen physique de suivi",
+        "exam_subforms": exam_subforms,
+        "exam_subforms_list": EXAM_SUBFORMS_LIST,
+        "title": "Nouvel examen physique",
     }
 
     return render(request, "patient/examen_physique_form.html", context)
@@ -926,39 +1024,137 @@ def examen_physique_update(request, pk):
     observation = examen.observation
 
     if request.method == "POST":
-        form = ExamenPhysiqueForm(request.POST, instance=examen)
-
-        if form.is_valid():
-            form.save()
-
-            messages.success(
-                request,
-                "L'examen physique de suivi a été modifié.",
-            )
-
-            return redirect(
-                reverse(
-                    "patient:examen_physique_list",
-                    kwargs={"observation_pk": observation.pk},
-                )
-            )
-
-        messages.error(
-            request,
-            "Le formulaire contient des erreurs.",
+        form = ExamenPhysiqueForm(request.POST, request.FILES, instance=examen)
+        exam_subforms = build_exam_subforms(
+            examen_instance=examen,
+            data=request.POST,
+            files=request.FILES,
         )
 
+        # Vérifier la validité de tous les formulaires
+        all_valid = form.is_valid()
+        for key, subform in exam_subforms.items():
+            if not subform.is_valid():
+                all_valid = False
+
+        if all_valid:
+            examen = form.save(commit=False)
+
+            # Combiner les données des sous-formulaires dans donnees_appareils
+            donnees_appareils = {}
+            for key, subform in exam_subforms.items():
+                donnees_appareils[key] = subform.get_json()
+
+            examen.donnees_appareils = donnees_appareils
+            examen.save()
+
+            messages.success(request, "L'examen physique a été modifié avec succès.")
+            return redirect("patient:examen_physique_list", observation_pk=observation.pk)
+        else:
+            messages.error(request, "Le formulaire contient des erreurs.")
     else:
         form = ExamenPhysiqueForm(instance=examen)
+        exam_subforms = build_exam_subforms(examen_instance=examen)
 
     context = {
         "observation": observation,
         "form": form,
-        "examen": examen,
-        "title": "Modifier un examen physique de suivi",
+        "exam_subforms": exam_subforms,
+        "exam_subforms_list": EXAM_SUBFORMS_LIST,
+        "title": f"Modifier l'examen du {examen.date_heure.strftime('%d/%m/%Y %H:%M')}",
     }
 
     return render(request, "patient/examen_physique_form.html", context)
+
+
+from .services.docx_generator import format_exam_data
+
+
+@require_GET
+def examen_physique_list(request, observation_pk):
+    observation = get_object_or_404(ObservationMedicale, pk=observation_pk)
+    examens = observation.examens_physiques.all().order_by("-date_heure")
+
+    # Pré-formatter chaque examen pour n'afficher que les champs évalués
+    examens_formatted = []
+
+    for examen in examens:
+        examen_data = {
+            "instance": examen,
+            "appareils": [],
+            "has_details": False,
+        }
+
+        donnees_appareils = examen.donnees_appareils or {}
+
+        appareils_list = [
+            ("pleuropulmonaire", "Appareil Pleuropulmonaire", "🫁"),
+            ("cardiovasculaire", "Appareil Cardiovasculaire", "❤️"),
+            ("digestif", "Appareil Digestif", "🫃"),
+            ("neurologique", "Appareil Neurologique", "🧠"),
+            ("orl", "Sphère ORL (Tête et Cou)", "👂"),
+            ("cutaneomuqueux", "Revêtement Cutanéomuqueux", "🖐"),
+            ("genitaux", "Appareils Génitaux", "⚧"),
+            ("osteoarticulaire", "Appareil Ostéo-Articulaire", "🦴"),
+        ]
+
+        for appareil_key, appareil_title, appareil_icon in appareils_list:
+            data = donnees_appareils.get(appareil_key, {})
+
+            if data and isinstance(data, dict):
+                # format_exam_data ne retourne QUE les lignes non vides
+                lines = format_exam_data(data)
+
+                if lines:
+                    # Séparer les lignes par catégorie
+                    categories = []
+                    current_category = None
+                    current_lines = []
+
+                    for line in lines:
+                        # Les lignes de catégorie commencent par "▸"
+                        if line.startswith("▸") or line.startswith("Chez"):
+                            if current_category and current_lines:
+                                categories.append({
+                                    "title": current_category,
+                                    "lines": current_lines,
+                                })
+                            current_category = line
+                            current_lines = []
+                        else:
+                            current_lines.append(line)
+
+                    # Ajouter la dernière catégorie
+                    if current_category and current_lines:
+                        categories.append({
+                            "title": current_category,
+                            "lines": current_lines,
+                        })
+
+                    # S'il n'y a pas de catégories mais des lignes directes
+                    if not categories and lines:
+                        categories.append({
+                            "title": "",
+                            "lines": lines,
+                        })
+
+                    examen_data["appareils"].append({
+                        "key": appareil_key,
+                        "title": appareil_title,
+                        "icon": appareil_icon,
+                        "categories": categories,
+                    })
+                    examen_data["has_details"] = True
+
+        examens_formatted.append(examen_data)
+
+    context = {
+        "observation": observation,
+        "examens_formatted": examens_formatted,
+        "examens_count": examens.count(),
+    }
+
+    return render(request, "patient/examen_physique_list.html", context)
 
 
 @require_POST

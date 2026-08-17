@@ -1,115 +1,524 @@
 {% extends "patient/base.html" %}
 
 {% block title %}
-    Examens physiques de suivi
+    Examens physiques - {{ observation.nom }} {{ observation.prenoms }}
 {% endblock %}
 
 {% block content %}
-    <div class="page-header">
-        <h1>Examens physiques de suivi</h1>
+<style>
+    .exam-list-header {
+        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        border-radius: 16px;
+        padding: 24px 28px;
+        color: #fff;
+        margin-bottom: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
 
-        <a href="{% url 'patient:examen_physique_create' observation.pk %}" class="btn btn-primary">
-            Ajouter un examen
-        </a>
-    </div>
+    .exam-list-header h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 800;
+    }
 
-    <div class="card">
-        <p>
-            <strong>Patient :</strong>
-            {{ observation.nom }} {{ observation.prenoms }}
-        </p>
+    .exam-list-header .subtitle {
+        color: rgba(255,255,255,0.8);
+        font-size: 14px;
+        margin-top: 4px;
+    }
 
-        <p>
-            <strong>Type :</strong>
-            {{ observation.get_type_observation_display }}
-            |
-            <strong>Âge :</strong>
-            {{ observation.age_display }}
-            |
-            <strong>N° dossier :</strong>
-            {{ observation.numero_dossier|default:"-" }}
-        </p>
+    /* ================================================ */
+    /* CARTE EXAMEN */
+    /* ================================================ */
 
-        <p>
-            <a href="{% url 'patient:observation_detail' observation.pk %}">
-                ← Retour à l'observation
-            </a>
-        </p>
-    </div>
+    .exam-card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 16px;
+        overflow: hidden;
+        transition: box-shadow 0.2s;
+    }
 
-    <div class="card">
-        <div class="table-responsive">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date / heure</th>
-                        <th>Poids (kg)</th>
-                        <th>Temp. (°C)</th>
-                        <th>FR</th>
-                        <th>FC</th>
-                        <th>SpO₂</th>
-                        <th>Conclusion</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
+    .exam-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
 
-                <tbody>
-                    {% for examen in examens %}
-                        <tr>
-                            <td>
-                                {{ examen.date_heure|date:"d/m/Y H:i" }}
-                            </td>
-                            <td>
-                                {{ examen.poids_kg|default:"-" }}
-                            </td>
-                            <td>
-                                {{ examen.temperature_c|default:"-" }}
-                            </td>
-                            <td>
-                                {{ examen.frequence_respiratoire|default:"-" }}
-                            </td>
-                            <td>
-                                {{ examen.frequence_cardiaque|default:"-" }}
-                            </td>
-                            <td>
-                                {{ examen.saturation_oxygene|default:"-" }}
-                            </td>
-                            <td>
-                                {{ examen.conclusion|truncatechars:60|default:"-" }}
-                            </td>
-                            <td>
-                                <a href="{% url 'patient:examen_physique_update' examen.pk %}">
-                                    Modifier
-                                </a>
+    /* En-tête de la carte (toujours visible) */
+    .exam-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.15s;
+    }
 
-                                |
+    .exam-card-header:hover {
+        background: #f8fafc;
+    }
 
-                                <form
-                                    method="post"
-                                    action="{% url 'patient:examen_physique_delete' examen.pk %}"
-                                    style="display:inline;"
-                                    onsubmit="return confirm('Supprimer cet examen physique ?');"
-                                >
-                                    {% csrf_token %}
-                                    <button
-                                        type="submit"
-                                        class="btn btn-danger"
-                                        style="padding: 4px 8px; font-size: 13px;"
-                                    >
-                                        Supprimer
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="8" class="muted">
-                                Aucun examen physique de suivi pour cette observation.
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    .exam-card-header .exam-date {
+        font-weight: 700;
+        font-size: 15px;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .exam-card-header .exam-date .exam-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: #f0fdf4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+
+    .exam-card-header .exam-meta {
+        font-size: 12px;
+        color: #64748b;
+        margin-top: 2px;
+    }
+
+    /* Badges des constantes vitales */
+    .vitals-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .vital-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .vital-badge.temp { background: #ffedd5; color: #9a3412; }
+    .vital-badge.fc { background: #fee2e2; color: #991b1b; }
+    .vital-badge.fr { background: #dbeafe; color: #1d4ed8; }
+    .vital-badge.spo2 { background: #dcfce7; color: #166534; }
+    .vital-badge.poids { background: #ede9fe; color: #6d28d9; }
+    .vital-badge.ta { background: #cffafe; color: #155e75; }
+    .vital-badge.glycemie { background: #fef3c7; color: #92400e; }
+
+    /* Flèche toggle */
+    .toggle-arrow {
+        font-size: 12px;
+        color: #94a3b8;
+        transition: transform 0.3s;
+        margin-left: 12px;
+    }
+
+    .exam-card.open .toggle-arrow {
+        transform: rotate(180deg);
+    }
+
+    /* Contenu dépliable */
+    .exam-card-body {
+        display: none;
+        padding: 0 20px 20px;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .exam-card.open .exam-card-body {
+        display: block;
+        animation: slideDown 0.25s ease;
+    }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ================================================ */
+    /* SECTIONS DANS LE CONTENU DÉPLIÉ */
+    /* ================================================ */
+
+    .exam-section {
+        margin-top: 16px;
+    }
+
+    .exam-section-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #334155;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Badges des signes */
+    .signe-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .signe-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #f0fdf4;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+    }
+
+    .signe-badge.fonctionnel {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border-color: #bfdbfe;
+    }
+
+    /* ================================================ */
+    /* APPAREILS (accordéon interne) */
+    /* ================================================ */
+
+    .appareil-block {
+        background: #f8fafc;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        margin-top: 10px;
+        overflow: hidden;
+    }
+
+    .appareil-block-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 16px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        color: #334155;
+        transition: background 0.15s;
+    }
+
+    .appareil-block-header:hover {
+        background: #f0fdf4;
+    }
+
+    .appareil-block-header .appareil-icon {
+        margin-right: 8px;
+    }
+
+    .appareil-block-body {
+        display: none;
+        padding: 0 16px 14px;
+    }
+
+    .appareil-block.open .appareil-block-body {
+        display: block;
+    }
+
+    .appareil-block .toggle-arrow {
+        font-size: 10px;
+    }
+
+    .appareil-block.open .toggle-arrow {
+        transform: rotate(180deg);
+    }
+
+    /* Catégorie (Inspection, Palpation, etc.) */
+    .categorie-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: #059669;
+        margin-top: 10px;
+        margin-bottom: 6px;
+    }
+
+    .categorie-lines {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .categorie-line {
+        font-size: 13px;
+        color: #475569;
+        padding: 2px 0;
+    }
+
+    .categorie-line .line-label {
+        font-weight: 600;
+        color: #334155;
+    }
+
+    /* Conclusion / Exceptions */
+    .exam-conclusion {
+        margin-top: 16px;
+        padding: 12px 16px;
+        background: #f0fdf4;
+        border-radius: 8px;
+        border-left: 4px solid #059669;
+        font-size: 13px;
+        color: #166534;
+    }
+
+    .exam-exception {
+        margin-top: 8px;
+        padding: 12px 16px;
+        background: #fffbeb;
+        border-radius: 8px;
+        border-left: 4px solid #f59e0b;
+        font-size: 13px;
+        color: #92400e;
+    }
+
+    /* ================================================ */
+    /* ÉTAT VIDE */
+    /* ================================================ */
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #94a3b8;
+    }
+
+    .empty-state .empty-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+    }
+
+    .empty-state h3 {
+        color: #475569;
+        margin-bottom: 8px;
+    }
+
+    /* ================================================ */
+    /* RESPONSIVE */
+    /* ================================================ */
+
+    @media (max-width: 768px) {
+        .exam-card-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .vitals-badges {
+            width: 100%;
+        }
+    }
+</style>
+
+<!-- Header -->
+<div class="exam-list-header">
+    <div>
+        <h1>🩺 Examens physiques</h1>
+        <div class="subtitle">
+            Patient : {{ observation.nom }} {{ observation.prenoms }}
+            | {{ observation.age_display }}
+            | {{ observation.get_type_observation_display }}
         </div>
     </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+        <span style="background:rgba(255,255,255,0.2); padding:6px 14px; border-radius:20px; font-size:13px; font-weight:600;">
+            {{ examens_count }} examen{{ examens_count|pluralize }}
+        </span>
+        <a href="{% url 'patient:examen_physique_create' observation.pk %}"
+           style="background:#fff; color:#059669; padding:10px 18px; border-radius:8px; text-decoration:none; font-weight:700; font-size:13px;">
+            + Nouvel examen
+        </a>
+        <a href="{% url 'patient:observation_detail' observation.pk %}"
+           style="background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.3); padding:10px 18px; border-radius:8px; text-decoration:none; font-weight:600; font-size:13px;">
+            ← Retour dossier
+        </a>
+    </div>
+</div>
+
+<!-- Liste des examens -->
+{% if examens_formatted %}
+    {% for examen_data in examens_formatted %}
+        {% with examen=examen_data.instance %}
+            <div class="exam-card" id="exam-card-{{ examen.pk }}">
+
+                <!-- ===== EN-TÊTE (toujours visible) ===== -->
+                <div class="exam-card-header" onclick="toggleExamCard({{ examen.pk }})">
+                    <div>
+                        <div class="exam-date">
+                            <div class="exam-icon">🩺</div>
+                            <div>
+                                {{ examen.date_heure|date:"d/m/Y H:i" }}
+                                {% if examen.examine_par %}
+                                    <span style="font-weight:400; color:#64748b; font-size:13px;">
+                                        — par {{ examen.examine_par }}
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="exam-meta">
+                            {% if examen_data.has_details %}
+                                {{ examen_data.appareils|length }} appareil{{ examen_data.appareils|length|pluralize }} examiné{{ examen_data.appareils|length|pluralize }}
+                            {% else %}
+                                Pas d'examen par appareil
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div style="display:flex; align-items:center;">
+                        <!-- Badges constantes vitales -->
+                        <div class="vitals-badges">
+                            {% if examen.temperature_c %}
+                                <span class="vital-badge temp">🌡 {{ examen.temperature_c }}°C</span>
+                            {% endif %}
+                            {% if examen.frequence_cardiaque %}
+                                <span class="vital-badge fc">❤ {{ examen.frequence_cardiaque }}</span>
+                            {% endif %}
+                            {% if examen.frequence_respiratoire %}
+                                <span class="vital-badge fr">🫁 {{ examen.frequence_respiratoire }}</span>
+                            {% endif %}
+                            {% if examen.saturation_oxygene %}
+                                <span class="vital-badge spo2">O₂ {{ examen.saturation_oxygene }}%</span>
+                            {% endif %}
+                            {% if examen.poids_kg %}
+                                <span class="vital-badge poids">⚖ {{ examen.poids_kg }} kg</span>
+                            {% endif %}
+                            {% if examen.tension_arterielle %}
+                                <span class="vital-badge ta">🩸 {{ examen.tension_arterielle }}</span>
+                            {% endif %}
+                            {% if examen.glycelie %}
+                                <span class="vital-badge glycemie">🩸 {{ examen.glycelie }} g/l</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Actions -->
+                        <a href="{% url 'patient:examen_physique_update' examen.pk %}"
+                           onclick="event.stopPropagation();"
+                           style="margin-left:12px; padding:6px 12px; border-radius:6px; border:1px solid #e2e8f0; background:#fff; font-size:12px; text-decoration:none; color:#475569;">
+                            ✏️ Modifier
+                        </a>
+
+                        <span class="toggle-arrow">▼</span>
+                    </div>
+                </div>
+
+                <!-- ===== CONTENU DÉPLIABLE ===== -->
+                <div class="exam-card-body">
+
+                    <!-- Signes généraux -->
+                    {% if examen.signes_generaux %}
+                        <div class="exam-section">
+                            <div class="exam-section-title">🌡 Signes généraux</div>
+                            <div class="signe-badges">
+                                {% for signe in examen.signes_generaux %}
+                                    <span class="signe-badge">{{ signe }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Signes fonctionnels -->
+                    {% if examen.signes_fonctionnels %}
+                        <div class="exam-section">
+                            <div class="exam-section-title">📝 Signes fonctionnels</div>
+                            <div class="signe-badges">
+                                {% for signe in examen.signes_fonctionnels %}
+                                    <span class="signe-badge fonctionnel">{{ signe }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Appareils -->
+                    {% if examen_data.appareils %}
+                        <div class="exam-section">
+                            <div class="exam-section-title">🔬 Examen par appareil</div>
+
+                            {% for appareil in examen_data.appareils %}
+                                <div class="appareil-block" id="appareil-{{ examen.pk }}-{{ appareil.key }}">
+                                    <div class="appareil-block-header"
+                                         onclick="toggleAppareil({{ examen.pk }}, '{{ appareil.key }}')">
+                                        <span>
+                                            <span class="appareil-icon">{{ appareil.icon }}</span>
+                                            {{ appareil.title }}
+                                        </span>
+                                        <span class="toggle-arrow">▼</span>
+                                    </div>
+
+                                    <div class="appareil-block-body">
+                                        {% for categorie in appareil.categories %}
+                                            {% if categorie.title %}
+                                                <div class="categorie-title">{{ categorie.title }}</div>
+                                            {% endif %}
+                                            <div class="categorie-lines">
+                                                {% for line in categorie.lines %}
+                                                    <div class="categorie-line">
+                                                        {% if ":" in line %}
+                                                            <span class="line-label">{{ line|cut:"▸ "|truncatechars:50 }}</span>
+                                                        {% else %}
+                                                            {{ line }}
+                                                        {% endif %}
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <!-- Exceptions -->
+                    {% if examen.exceptions %}
+                        <div class="exam-exception">
+                            ⚠️ <strong>Exceptions :</strong> {{ examen.exceptions }}
+                        </div>
+                    {% endif %}
+
+                    <!-- Conclusion -->
+                    {% if examen.conclusion %}
+                        <div class="exam-conclusion">
+                            ✅ <strong>Conclusion :</strong> {{ examen.conclusion }}
+                        </div>
+                    {% endif %}
+
+                </div>
+            </div>
+        {% endwith %}
+    {% endfor %}
+{% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <h3>Aucun examen physique enregistré</h3>
+        <p>Créez un premier examen pour ce patient.</p>
+    </div>
+{% endif %}
+
+<!-- JavaScript pour les toggles -->
+<script>
+    function toggleExamCard(examId) {
+        const card = document.getElementById('exam-card-' + examId);
+        if (card) {
+            card.classList.toggle('open');
+        }
+    }
+
+    function toggleAppareil(examId, appareilKey) {
+        const block = document.getElementById('appareil-' + examId + '-' + appareilKey);
+        if (block) {
+            block.classList.toggle('open');
+        }
+    }
+</script>
 {% endblock %}

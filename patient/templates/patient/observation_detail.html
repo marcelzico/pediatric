@@ -1,5 +1,7 @@
 {% extends "patient/base.html" %}
 
+{% load exam_tags %}
+
 {% block title %}
     {{ observation.nom }} {{ observation.prenoms }} - Dossier patient
 {% endblock %}
@@ -1072,12 +1074,38 @@
                 </div>
             {% endif %}
 
-            <!-- Examen clinique complet -->
-            <div style="text-align:center; padding:20px;">
-                <a href="{% url 'patient:observation_generate_docx' observation.pk %}" class="btn btn-primary">
-                    📄 Voir l'examen complet dans le document Word
-                </a>
-            </div>
+            <!-- ===== EXAMEN PAR APPAREIL (ACCORDÉON) ===== -->
+            {% if examen_appareils_formatted %}
+                <div class="info-card" style="margin-bottom:20px;">
+                    <div class="info-card-header">🔬 Examen détaillé par appareil</div>
+                    <div class="info-card-body">
+                        {% for appareil in examen_appareils_formatted %}
+                            <div class="appareil-block" id="obs-detail-appareil-{{ appareil.key }}">
+                                <div class="appareil-block-header"
+                                    onclick="toggleObsDetailAppareil('{{ appareil.key }}')">
+                                    <span>
+                                        <span class="appareil-icon">{{ appareil.icon }}</span>
+                                        {{ appareil.title }}
+                                    </span>
+                                    <span class="toggle-arrow">▼</span>
+                                </div>
+                                <div class="appareil-block-body">
+                                    {% for categorie in appareil.categories %}
+                                        {% if categorie.title %}
+                                            <div class="categorie-title">{{ categorie.title }}</div>
+                                        {% endif %}
+                                        <div class="categorie-lines">
+                                            {% for line in categorie.lines %}
+                                                <div class="categorie-line">{{ line }}</div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
         {% else %}
             <div class="info-card">
                 <div class="info-card-body" style="text-align:center; color:#94a3b8; padding:40px;">
