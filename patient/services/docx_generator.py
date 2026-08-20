@@ -166,7 +166,7 @@ def display_choice(field_key, value):
                 displayed = display_choice(field_key, item)
                 if displayed:
                     items.append(displayed)
-        return ", ".join(items)
+        return ",`\n ".join(items)
 
     if isinstance(value, dict):
         return ""
@@ -657,7 +657,7 @@ def build_etat_civil_lines(observation):
     add_line(lines, "Adresse", observation.adresse)
     add_line(lines, "N° Tél", observation.telephone)
     add_line(lines, "Lit N°", observation.lit)
-    add_line(lines, "N° Dossier", observation.numero_dossier)
+    add_line(lines, "N° Dossier", observation.lit)
     return lines
 
 
@@ -674,8 +674,8 @@ def build_familiaux_lines(observation):
     if not af:
         return lines
     add_line(lines, "Rang dans la fratrie", af.rang_fratrie)
-    add_line(lines, "État de santé Ascendants", af.etat_sante_ascendants)
-    add_line(lines, "État de santé Collatéraux", af.etat_sante_collateraux)
+    add_line(lines, "État de santé ascendants", af.etat_sante_ascendants)
+    add_line(lines, "État de santé collatéraux", af.etat_sante_collateraux)
     add_line(lines, "Tares familiales", display_choice("tares_familiales", af.tares_familiales))
     return lines
 
@@ -693,9 +693,9 @@ def build_grossesse_lines(observation):
     add_line(lines, "Lieu CPN", g.lieu_cpn)
     add_line(lines, "Nombre VAT fait", g.nombre_vat)
     add_line(lines, "Sérologies", format_serologies(g.serologies))
-    add_line(lines, "Nombre Échographies", g.nombre_echographies)
-    add_line(lines, "Résultat Échographie", g.resultat_echographie)
-    add_line(lines, "Pathologies grossesse", display_choice("pathologies_grossesse", g.pathologies_grossesse))
+    add_line(lines, "Nombre de l'échographies", g.nombre_echographies)
+    add_line(lines, "Résultat de l'échographie", g.resultat_echographie)
+    add_line(lines, "Pathologies de grossesse", display_choice("pathologies_grossesse", g.pathologies_grossesse))
 
     # Détails leucorrhées si cochées
     pathologies = g.pathologies_grossesse if isinstance(g.pathologies_grossesse, list) else []
@@ -706,7 +706,7 @@ def build_grossesse_lines(observation):
         add_line(lines, "Leucorrhées - Abondance", g.leucorrhees_abondance)
         add_line(lines, "Leucorrhées traitées ?", yn(g.leucorrhees_traitees))
 
-    add_line(lines, "Prise médicaments", g.prise_medicaments)
+    add_line(lines, "Prise médicaments (FAF)", g.prise_medicaments)
     add_line(lines, "Prise toxique", g.prise_toxiques)
 
     if g.conclusion:
@@ -736,8 +736,8 @@ def build_accouchement_lines(observation):
     add_line(lines, "Réanimation ?", yn(a.reanimation))
     add_line(lines, "Durée réanimation (min)", a.duree_reanimation_minutes)
     add_line(lines, "Couleur liquide amniotique", display_choice("liquide_amniotique_couleur", a.liquide_amniotique_couleur))
-    add_line(lines, "Abondance LA", display_choice("liquide_amniotique_abondance", a.liquide_amniotique_abondance))
-    add_line(lines, "Poids naissance (kg)", format_number(a.poids_naissance_kg))
+    add_line(lines, "Abondance liquide amniotique", display_choice("liquide_amniotique_abondance", a.liquide_amniotique_abondance))
+    add_line(lines, "Poids naissance (g)", format_number(a.poids_naissance_kg))
     add_line(lines, "Type poids naissance", display_choice("poids_naissance_type", a.poids_naissance_type))
     add_line(lines, "Type d'accouchement", display_choice("type_accouchement", a.type_accouchement))
     add_line(lines, "Adaptation néonatale", display_choice("adaptation_neonatale", a.adaptation_neonatale))
@@ -813,9 +813,9 @@ def build_fiche_sociale_lines(observation):
     lines = []
     if not fs:
         return lines
-    add_line(lines, "Profession Père", fs.profession_pere)
-    add_line(lines, "Profession Mère", fs.profession_mere)
-    add_line(lines, "Type Maison", fs.type_maison)
+    add_line(lines, "Profession père", fs.profession_pere)
+    add_line(lines, "Profession mère", fs.profession_mere)
+    add_line(lines, "Type maison", fs.type_maison)
     add_line(lines, "Nombre de chambres", fs.nombre_chambres)
     add_line(lines, "Nombre personnes y vivant", fs.nombre_personnes)
     add_line(lines, "Éclairage", display_choice("eclairage", fs.eclairage))
@@ -886,26 +886,477 @@ def build_examens_appareils_blocks(observation):
     return blocks
 
 
+def build_mise_en_equation_lines(observation):
+    """
+    Construit la section MISE EN ÉQUATION :
+    résumé narratif des antécédents, de l'examen physique
+    et des hypothèses diagnostiques.
+    """
+    lines = []
+
+    # ----------------------------------------------------------
+    # 1. PHRASE D'INTRODUCTION
+    # ----------------------------------------------------------
+    nom_complet = f"{observation.nom} {observation.prenoms}".strip()
+    sexe_display = observation.get_sexe_display()
+    age = observation.age_display
+    date_entree = format_date(observation.date_admission)
+    motif = clean_text(observation.motif_admission)
+
+    intro = f"• Il s'agit de {nom_complet}, âgé de {age}, de sexe {sexe_display}"
+    if date_entree:
+        intro += f", entré le {date_entree}"
+    if motif:
+        intro += f" pour {motif}"
+    intro += "."
+    lines.append(intro)
+
+    # ----------------------------------------------------------
+    # 2. ANTÉCÉDENTS (résumé)
+    # ----------------------------------------------------------
+
+    # Antécédents familiaux
+    af = get_related(observation, "antecedents_familiaux")
+    tares = ""
+    if af:
+        tares = display_choice("tares_familiales", af.tares_familiales)
+    lines.append(f"  o Antécédents familiaux : {tares if tares else 'Non renseigné.'}")
+
+    # Antécédents personnels
+    atcd = get_related(observation, "antecedents_personnels")
+    atcd_parts = []
+
+    if atcd:
+        if atcd.hospitalisation_anterieure:
+            atcd_parts.append(f"hospitalisation antérieure : {atcd.hospitalisation_anterieure}")
+        if atcd.atcd_medicaux:
+            atcd_parts.append(f"ATCD médicaux : {atcd.atcd_medicaux}")
+        if atcd.atcd_chirurgicaux:
+            atcd_parts.append(f"ATCD chirurgicaux : {atcd.atcd_chirurgicaux}")
+
+    # Vaccination
+    v = get_related(observation, "vaccination")
+    if v:
+        vaccins = v.vaccins_recus if isinstance(v.vaccins_recus, list) else []
+        nb_vaccins = len([x for x in vaccins if x])
+        if nb_vaccins > 0:
+            atcd_parts.append(f"vacciné ({nb_vaccins} vaccins)")
+        elif v.vaccination_correcte:
+            atcd_parts.append("vaccination correcte")
+
+    if atcd_parts:
+        lines.append(f"  o Antécédents personnels : {'; '.join(atcd_parts)}.")
+
+    # DPM
+    dpm = get_related(observation, "developpement_psychomoteur")
+    if dpm and dpm.conclusion:
+        dpm_display = display_choice("dpm_conclusion", dpm.conclusion)
+        lines.append(f"  o Développement psychomoteur : {dpm_display}.")
+
+    # Alimentation
+    al = get_related(observation, "alimentation")
+    if al:
+        alim_parts = []
+        if al.ame_jusqua_mois:
+            alim_parts.append(f"AME jusqu'à {al.ame_jusqua_mois} mois")
+        if al.regime:
+            regime_display = display_choice("regime", al.regime)
+            alim_parts.append(f"régime {regime_display.lower()}")
+        if al.alimentation_actuelle:
+            alim_parts.append(f"actuellement : {al.alimentation_actuelle}")
+        if alim_parts:
+            lines.append(f"  o Alimentation : {', '.join(alim_parts)}.")
+
+    # Niveau socio-économique
+    fs = get_related(observation, "fiche_sociale")
+    if fs and fs.niveau_social:
+        niveau_display = display_choice("niveau_social", fs.niveau_social)
+        lines.append(f"  o Niveau socio-économique : {niveau_display}.")
+
+    # ----------------------------------------------------------
+    # 3. EXAMEN PHYSIQUE (résumé)
+    # ----------------------------------------------------------
+    ec = get_related(observation, "examen_clinique")
+    if ec:
+        lines.append("")
+        lines.append("• L'examen physique a objectivé :")
+
+        # Signes généraux
+        signes_3a2s = display_choice("signes_3a2s", ec.signes_3a2s)
+        if signes_3a2s:
+            lines.append(f"  o Sur le plan général : {signes_3a2s}")
+
+        # Signes fonctionnels
+        if ec.signes_fonctionnels and str(ec.signes_fonctionnels).strip():
+            lines.append(f"  o Sur le plan fonctionnel : {str(ec.signes_fonctionnels).strip()}")
+
+        # Appareils : utiliser la conclusion de chaque appareil
+        appareils = [
+            ("pleuropulmonaire", "appareil pleuropulmonaire"),
+            ("cardiovasculaire", "appareil cardiovasculaire"),
+            ("digestif", "appareil digestif"),
+            ("neurologique", "système nerveux"),
+            ("orl", "sphère ORL"),
+            ("cutaneomuqueux", "revêtement cutanéomuqueux"),
+            ("genitaux", "appareils génitaux"),
+            ("osteoarticulaire", "appareil ostéo-articulaire"),
+        ]
+
+        appareils_avec_conclusion = []
+        appareils_sans_conclusion = []
+
+        for appareil_key, appareil_label in appareils:
+            data = getattr(ec, appareil_key, None)
+            conclusion = None
+
+            if isinstance(data, dict):
+                conclusion = _get_value(data, "conclusion")
+
+            if conclusion and str(conclusion).strip():
+                appareils_avec_conclusion.append(
+                    f"  o Sur le plan {appareil_label} : {str(conclusion).strip()}"
+                )
+            else:
+                appareils_sans_conclusion.append(appareil_label)
+
+        lines.extend(appareils_avec_conclusion)
+
+        if appareils_sans_conclusion:
+            if len(appareils_sans_conclusion) == len(appareils):
+                lines.append("  o Tous les appareils : examens normaux")
+            else:
+                lines.append("  o Les autres appareils : examens normaux")
+
+    # ----------------------------------------------------------
+    # 4. HYPOTHÈSES DIAGNOSTIQUES
+    # ----------------------------------------------------------
+    hypotheses = observation.hypotheses_diagnostiques.all()
+    if hypotheses:
+        lines.append("")
+        lines.append("• Posant un problème de diagnostic étiologique de :")
+        for i, hypo in enumerate(hypotheses, 1):
+            if hypo.diagnostic_propose and str(hypo.diagnostic_propose).strip():
+                lines.append(f"  {i}. {str(hypo.diagnostic_propose).strip()}")
+
+    return lines
+
+
+# def build_mise_en_equation_lines(observation):
+#     """
+#     Construit le texte narratif de mise en équation.
+#     Résume les antécédents, l'examen physique et les hypothèses diagnostiques.
+#     """
+#     lines = []
+
+#     # --- Paragraphe d'introduction ---
+#     nom_complet = f"{observation.nom} {observation.prenoms}".strip()
+#     sexe_display = observation.get_sexe_display()
+#     age_display = observation.age_display
+#     date_admission = format_date(observation.date_admission) or "date non précisée"
+#     motif = clean_text(observation.motif_admission) or "motif non précisé"
+
+#     lines.append(f"• Il s'agit de {nom_complet}, âgé de {age_display}, de sexe {sexe_display}, entré le {date_admission} pour {motif}.")
+
+#     # --- Antécédents ---
+#     af = get_related(observation, "antecedents_familiaux")
+#     atcd = get_related(observation, "antecedents_personnels")
+#     g = get_related(observation, "grossesse")
+#     a = get_related(observation, "accouchement")
+#     al = get_related(observation, "alimentation")
+#     v = get_related(observation, "vaccination")
+#     dpm = get_related(observation, "developpement_psychomoteur")
+#     ctx = get_related(observation, "contexte_epidemiologique")
+#     fs = get_related(observation, "fiche_sociale")
+
+#     # Antécédents familiaux
+#     tares = display_choice("tares_familiales", af.tares_familiales) if af else ""
+#     if tares:
+#         lines.append(f"o Antécédents familiaux : {tares}.")
+#     else:
+#         lines.append("o Antécédents familiaux : Non renseignés.")
+
+#     # Antécédents personnels
+#     atcd_parts = []
+#     if v:
+#         vaccins = display_choice("vaccins_recus", v.vaccins_recus)
+#         if vaccins:
+#             nb_vaccins = len(v.vaccins_recus) if isinstance(v.vaccins_recus, list) else 0
+#             atcd_parts.append(f"vacciné ({nb_vaccins} vaccins)")
+#         elif v.vaccination_correcte is True:
+#             atcd_parts.append("vaccination correcte")
+#         elif v.vaccination_correcte is False:
+#             atcd_parts.append("vaccination incorrecte")
+
+#     if atcd:
+#         if atcd.hospitalisation_anterieure:
+#             atcd_parts.append(f"hospitalisation antérieure : {atcd.hospitalisation_anterieure}")
+#         if atcd.atcd_medicaux:
+#             atcd_parts.append(f"ATCD médicaux : {atcd.atcd_medicaux}")
+#         if atcd.atcd_chirurgicaux:
+#             atcd_parts.append(f"ATCD chirurgicaux : {atcd.atcd_chirurgicaux}")
+
+#     if atcd_parts:
+#         lines.append(f"o Antécédents personnels : {' ; '.join(atcd_parts)}.")
+#     else:
+#         lines.append("o Antécédents personnels : Non renseignés.")
+
+#     # DPM
+#     if dpm and dpm.conclusion:
+#         dpm_display = display_choice("dpm_conclusion", dpm.conclusion)
+#         lines.append(f"o Développement psychomoteur : {dpm_display}.")
+
+#     # Alimentation
+#     al_parts = []
+#     if al:
+#         al_type = display_choice("type_alimentation", al.type_alimentation)
+#         if al_type:
+#             al_parts.append(al_type)
+#         if al.ame_jusqua_mois:
+#             al_parts.append(f"AME jusqu'à {al.ame_jusqua_mois} mois")
+#         if al.regime:
+#             regime_display = display_choice("regime", al.regime)
+#             al_parts.append(f"régime {regime_display.lower()}")
+#     if al_parts:
+#         lines.append(f"o Alimentation : {', '.join(al_parts)}.")
+
+#     # Grossesse (résumé)
+#     if g and g.conclusion:
+#         conclusion_display = display_choice("conclusion_grossesse", g.conclusion)
+#         lines.append(f"o Grossesse : {conclusion_display}.")
+
+#     # Accouchement (résumé)
+#     if a and a.conclusion:
+#         lines.append(f"o Accouchement : {a.conclusion}")
+
+#     # Contexte épidémiologique
+#     ctx_parts = []
+#     if ctx:
+#         dyspnee_ctx = display_choice("dyspnee_contexte", ctx.dyspnee_contexte)
+#         if dyspnee_ctx:
+#             ctx_parts.append(f"dyspnée : {dyspnee_ctx}")
+#         diarrhee_ctx = display_choice("diarrhee_contexte", ctx.diarrhee_contexte)
+#         if diarrhee_ctx:
+#             ctx_parts.append(f"diarrhée : {diarrhee_ctx}")
+#     if ctx_parts:
+#         lines.append(f"o Contexte épidémiologique : {' ; '.join(ctx_parts)}.")
+
+#     # Niveau social
+#     if fs and fs.niveau_social:
+#         niveau_display = display_choice("niveau_social", fs.niveau_social)
+#         lines.append(f"o Niveau socio-économique : {niveau_display}.")
+
+#     lines.append("")
+
+#     # --- Examen physique ---
+#     ec = get_related(observation, "examen_clinique")
+#     lines.append("• L'examen physique a objectivé :")
+
+#     if ec:
+#         # Signes généraux
+#         signes_gen = display_choice("signes_3a2s", ec.signes_3a2s)
+#         if signes_gen:
+#             lines.append(f"o Sur le plan général : {signes_gen}.")
+#         else:
+#             lines.append("o Sur le plan général : Pas de signes généraux notables.")
+
+#         # Signes fonctionnels
+#         if ec.signes_fonctionnels and str(ec.signes_fonctionnels).strip():
+#             lines.append(f"o Sur le plan fonctionnel : {ec.signes_fonctionnels}.")
+#         else:
+#             lines.append("o Sur le plan fonctionnel : Non renseignés.")
+
+#         # Appareils
+#         appareils = [
+#             ("pleuropulmonaire", "appareil pleuropulmonaire"),
+#             ("cardiovasculaire", "appareil cardiovasculaire"),
+#             ("digestif", "appareil digestif"),
+#             ("neurologique", "système nerveux"),
+#             ("orl", "sphère ORL"),
+#             ("cutaneomuqueux", "revêtement cutanéomuqueux"),
+#             ("genitaux", "appareils génitaux"),
+#             ("osteoarticulaire", "appareil ostéo-articulaire"),
+#         ]
+
+#         appareils_avec_anomalies = []
+#         appareils_normaux = []
+
+#         for appareil_key, appareil_label in appareils:
+#             data = getattr(ec, appareil_key, None)
+#             if not isinstance(data, dict):
+#                 appareils_normaux.append(appareil_label)
+#                 continue
+
+#             conclusion_val = _get_value(data, "conclusion")
+#             exceptions_val = _get_value(data, "exceptions")
+#             has_data = False
+
+#             # Vérifier s'il y a des données remplies dans les catégories
+#             for cat_key, cat_val in _iter_dict_items(data):
+#                 if cat_key in ("exceptions", "conclusion"):
+#                     continue
+#                 if isinstance(cat_val, dict):
+#                     for sub_key, sub_val in _iter_dict_items(cat_val):
+#                         if not is_empty(sub_val):
+#                             has_data = True
+#                             break
+#                 elif not is_empty(cat_val):
+#                     has_data = True
+#                     break
+
+#             if has_data or (conclusion_val and str(conclusion_val).strip()):
+#                 detail = ""
+#                 if conclusion_val and str(conclusion_val).strip():
+#                     detail = str(conclusion_val).strip()
+#                 elif exceptions_val and str(exceptions_val).strip():
+#                     detail = str(exceptions_val).strip()
+#                 else:
+#                     # Résumer les données trouvées
+#                     exam_lines = format_exam_data(data)
+#                     detail = " ; ".join(exam_lines[:3]) if exam_lines else "Anomalies constatées"
+
+#                 appareils_avec_anomalies.append((appareil_label, detail))
+#             else:
+#                 appareils_normaux.append(appareil_label)
+
+#         for appareil_label, detail in appareils_avec_anomalies:
+#             lines.append(f"o Sur le plan {appareil_label} : {detail}.")
+
+#         if appareils_normaux:
+#             if len(appareils_normaux) == len(appareils):
+#                 lines.append("o Tous les appareils : examens normaux.")
+#             else:
+#                 lines.append(f"o Les autres appareils ({', '.join(appareils_normaux)}) : examens normaux.")
+#     else:
+#         lines.append("o Examen clinique non renseigné.")
+
+#     lines.append("")
+
+#     # --- Hypothèses diagnostiques ---
+#     hypotheses = observation.hypotheses_diagnostiques.all()
+#     if hypotheses:
+#         lines.append("• Posant un problème de diagnostic étiologique de :")
+#         for i, hypo in enumerate(hypotheses, 1):
+#             if hypo.diagnostic_propose:
+#                 lines.append(f"{i}. {hypo.diagnostic_propose}")
+#     elif observation.diagnostic_retenu:
+#         lines.append(f"• Diagnostic retenu : {observation.diagnostic_retenu}")
+
+#     return lines
+
+
+# def build_discussion_blocks(observation):
+#     """
+#     Construit les blocs de discussion diagnostique.
+#     Retourne les hypothèses sous forme de tableau + diagnostic retenu.
+#     """
+#     hypotheses = observation.hypotheses_diagnostiques.all()
+#     blocks = []
+
+#     # Tableau des hypothèses
+#     if hypotheses:
+#         table_rows = []
+#         for hypo in hypotheses:
+#             table_rows.append({
+#                 "hypothese": clean_text(hypo.diagnostic_propose) or "-",
+#                 "pour": clean_text(hypo.arguments_pour) or "-",
+#                 "contre": clean_text(hypo.arguments_contre) or "-",
+#                 "paraclinique": clean_text(hypo.paraclinique) or "-",
+#             })
+
+#         blocks.append({
+#             "title": "Tableau de discussion diagnostique",
+#             "lines": [],
+#             "has_table": True,
+#             "table_rows": table_rows,
+#         })
+
+#     # Diagnostic retenu
+#     if observation.diagnostic_retenu:
+#         blocks.append({
+#             "title": "Diagnostic retenu",
+#             "lines": [observation.diagnostic_retenu],
+#             "has_table": False,
+#             "table_rows": [],
+#         })
+
+#     if not blocks:
+#         blocks.append({
+#             "title": "",
+#             "lines": ["Discussion diagnostique non renseignée."],
+#             "has_table": False,
+#             "table_rows": [],
+#         })
+
+#     return blocks
+
+
+# def build_discussion_blocks(observation):
+#     """
+#     Construit les blocs texte de la discussion diagnostique.
+#     Le tableau des hypothèses est géré séparément via build_hypotheses_table.
+#     """
+#     blocks = []
+
+#     if observation.diagnostic_retenu and str(observation.diagnostic_retenu).strip():
+#         blocks.append({
+#             "title": "Diagnostic retenu",
+#             "lines": [str(observation.diagnostic_retenu).strip()],
+#         })
+
+#     return blocks
+
+
+# def build_hypotheses_table(observation):
+#     """
+#     Construit la liste des hypothèses pour le tableau Word.
+#     Chaque entrée est un dict avec les 4 colonnes du tableau.
+#     """
+#     hypotheses = observation.hypotheses_diagnostiques.all()
+#     table_data = []
+
+#     for hypo in hypotheses:
+#         table_data.append({
+#             "diagnostic_propose": clean_text(hypo.diagnostic_propose),
+#             "arguments_pour": clean_text(hypo.arguments_pour),
+#             "arguments_contre": clean_text(hypo.arguments_contre),
+#             "paraclinique": clean_text(hypo.paraclinique),
+#         })
+
+#     return table_data
+
+
 def build_discussion_blocks(observation):
+    """
+    Construit les blocs de discussion diagnostique sous forme de texte indenté
+    (solution temporaire fiable en attendant de corriger les tableaux docxtpl).
+    """
     hypotheses = observation.hypotheses_diagnostiques.all()
     blocks = []
 
-    for hypo in hypotheses:
+    if hypotheses:
         lines = []
-        add_line(lines, "Diagnostic proposé", hypo.diagnostic_propose)
-        add_line(lines, "Argument pour", hypo.arguments_pour)
-        add_line(lines, "Argument contre", hypo.arguments_contre)
-        add_line(lines, "Para clinique", hypo.paraclinique)
-        if lines:
-            blocks.append({
-                "title": f"Diagnostic {hypo.ordre}",
-                "lines": lines,
-            })
+        for hypo in hypotheses:
+            lines.append(f"• Diagnostic proposé : {clean_text(hypo.diagnostic_propose) or '-'}")
+            lines.append(f"  - Arguments pour : {clean_text(hypo.arguments_pour) or '-'}")
+            lines.append(f"  - Arguments contre : {clean_text(hypo.arguments_contre) or '-'}")
+            lines.append(f"  - Paraclinique : {clean_text(hypo.paraclinique) or '-'}")
+            lines.append("")  # Ligne vide pour espacer les hypothèses
+        
+        blocks.append({
+            "title": "Hypothèses diagnostiques",
+            "lines": lines,
+        })
 
     if observation.diagnostic_retenu:
         blocks.append({
             "title": "Diagnostic retenu",
             "lines": [observation.diagnostic_retenu],
+        })
+
+    if not blocks:
+        blocks.append({
+            "title": "",
+            "lines": ["Discussion diagnostique non renseignée."],
         })
 
     return blocks
@@ -1139,15 +1590,26 @@ def build_observation_context(observation):
         "blocks": examen_blocks,
     })
 
+    # MISE EN ÉQUATION
+    mise_en_equation = build_mise_en_equation_lines(observation)
+    if mise_en_equation:
+        sections.append({
+            "title": "VI. MISE EN ÉQUATION",
+            "blocks": [{
+                "title": "",
+                "lines": mise_en_equation,
+            }],
+        })
+
     # VI. DISCUSSION DIAGNOSTIQUE
     sections.append({
-        "title": "VI. DISCUSSION DIAGNOSTIQUE",
+        "title": "VII. DISCUSSION DIAGNOSTIQUE",
         "blocks": build_discussion_blocks(observation) or [{"title": "", "lines": ["Non renseignée."]}],
     })
 
     # VII. TRAITEMENT PROPOSÉ
     sections.append({
-        "title": "VII. TRAITEMENT PROPOSÉ",
+        "title": "VIII. TRAITEMENT PROPOSÉ",
         "blocks": [{
             "title": "",
             "lines": build_traitement_lines(observation) or ["Non renseigné."],
@@ -1156,7 +1618,7 @@ def build_observation_context(observation):
 
     # VIII. SURVEILLANCE
     sections.append({
-        "title": "VIII. SURVEILLANCE",
+        "title": "IX. SURVEILLANCE",
         "blocks": [{
             "title": "",
             "lines": build_surveillance_lines(observation) or ["Non renseignée."],

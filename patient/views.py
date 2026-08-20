@@ -1726,3 +1726,218 @@ def examen_paraclinique_delete(request, pk):
 
 
 
+
+def create_etat_civil(request):
+    if request.method == "POST":
+        form = ObservationMedicaleForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Forme a été enregistré avec succès.")
+            return redirect("patient:observation_list")
+        else:
+            messages.error(request, "Le formulaire contient des erreurs.")
+    else:
+        form = ObservationMedicaleForm()
+
+    context = {
+        "form": form,
+    }
+
+    return render(request, "patient/etat_civil_form.html", context)
+
+
+def create_atcd_familial(request, pk):
+    etat_civil = ObservationMedicale.objects.get(id=pk)
+    if request.method == "POST":
+        form = AntecedentsFamiliauxForm(request.POST, instance=etat_civil)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Forme a été enregistré avec succès.")
+            return redirect("patient:grossesse", pk=pk)
+        else:
+            messages.error(request, "Le formulaire contient des erreurs.")
+    else:
+        form = AntecedentsFamiliauxForm(instance=etat_civil)
+
+    context = {
+        "form": form,
+    }
+
+    return render(request, "patient/atcd_familial_form.html", context)
+
+
+def create_grossesse (request, pk): 
+    etat_civil = ObservationMedicale.objects.get(id=pk)
+    if request.method == "POST":
+        form = GrossesseForm(request.POST, instance=etat_civil)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Forme a été enregistré avec succès.")
+            return redirect("patient:accouchement", pk=pk)
+            
+        else:
+            messages.error(request, "Le formulaire contient des erreurs.")
+    else:
+        form = GrossesseForm(instance=etat_civil)
+
+    context = {
+        "form": form,
+    }
+
+    return render(request, "patient/grossesse_form.html", context)
+
+
+def create_accouchement (request, pk):
+    etat_civil = ObservationMedicale.objects.get(id=pk)
+    if request.method == "POST":
+        form = AccouchementForm(request.POST, instance=etat_civil)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Forme a été enregistré avec succès.")
+            return redirect("patient:alimentation", pk=pk)
+            
+        else:
+            messages.error(request, "Le formulaire contient des erreurs.")
+    else:
+        form = AccouchementForm(instance=etat_civil)
+
+    context = {
+        "form": form,
+    }
+
+    return render(request, "patient/accouchement_form.html", context)
+
+
+def create_alimentation(request, pk):
+    etat_civil = ObservationMedicale.objects.get(id=pk)
+    if request.method == "POST":
+        form = AlimentationForm(request.POST, instance=etat_civil)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Forme a été enregistré avec succès.")
+            return redirect("patient:vaccination", pk=pk)
+            
+        else:
+            messages.error(request, "Le formulaire contient des erreurs.")
+    else:
+        form = AlimentationForm(instance=etat_civil)
+
+    context = {
+        "form": form,
+    }
+
+    return render(request, "patient/alimentation_form.html", context)
+
+
+def create_vaccination(request, pk):
+    etat_civil = ObservationMedicale.objects.get(id=pk)
+    if request.method == "POST":
+        form = VaccinationForm(request.POST, instance=etat_civil)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Forme a été enregistré avec succès.")
+            return redirect("patient:social", pk=pk)
+            
+        else:
+            messages.error(request, "Le formulaire contient des erreurs.")
+    else:
+        form = VaccinationForm(instance=etat_civil)
+
+    context = {
+        "form": form,
+    }
+
+    return render(request, "patient/vaccination_form.html", context)
+
+
+def create_social(request, pk):
+    etat_civil = ObservationMedicale.objects.get(id=pk)
+    if request.method == "POST":
+        form = FicheSocialeForm(request.POST, instance=etat_civil)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Forme a été enregistré avec succès.")
+            return redirect("patient:dpm", pk=pk)
+            
+        else:
+            messages.error(request, "Le formulaire contient des erreurs.")
+    else:
+        form = FicheSocialeForm(instance=etat_civil)
+
+    context = {
+        "form": form,
+    }
+
+    return render(request, "patient/socical_form.html", context)
+
+
+def create_dpm(request, pk):
+    etat_civil = ObservationMedicale.objects.get(id=pk)
+    if request.method == "POST":
+        form = DeveloppementPsychomoteurForm(request.POST, instance=etat_civil)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Forme a été enregistré avec succès.")
+            return redirect("patient:hdm", pk=pk)
+            
+        else:
+            messages.error(request, "Le formulaire contient des erreurs.")
+    else:
+        form = DeveloppementPsychomoteurForm(instance=etat_civil)
+
+    context = {
+        "form": form,
+    }
+
+    return render(request, "patient/dpm_form.html", context)
+
+
+def create_hdm(request, pk):
+    etat_civil = ObservationMedicale.objects.get(id=pk)
+    if request.method == "POST":
+        form = EpisodeHistoireMaladieFormSet(request.POST, instance=etat_civil)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Forme a été enregistré avec succès.")
+            return redirect("patient:examen", pk=pk)
+            
+        else:
+            messages.error(request, "Le formulaire contient des erreurs.")
+    else:
+        form = EpisodeHistoireMaladieFormSet(instance=etat_civil)
+
+    context = {
+        "form": form,
+    }
+
+    return render(request, "patient/hdm_form.html", context)
+
+
+def create_examen(clinique, pk):
+    pass
+
+def create_discussion(request, pk):
+    pass
+
+def create_traitement(request, pk):
+    etat_civil = ObservationMedicale.objects.get(id=pk)
+    if request.method == "POST":
+        form = TraitementForm(request.POST, instance=etat_civil)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Forme a été enregistré avec succès.")
+            return redirect("patient:observation_detail", pk=pk)
+            
+        else:
+            messages.error(request, "Le formulaire contient des erreurs.")
+    else:
+        form = TraitementForm(instance=etat_civil)
+
+    context = {
+        "form": form,
+    }
+
+    return render(request, "patient/traitement_form.html", context)
+
+
+

@@ -182,77 +182,6 @@
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
     }
 
-    {% comment %} /* ✅ CORRECTION : Checkboxes et radios */
-    input[type="checkbox"],
-    input[type="radio"] {
-        width: auto !important;
-        display: inline-block !important;
-        margin: 0 !important;
-        cursor: pointer;
-    }
-
-    /* Listes de checkboxes/radios (Django rend <ul><li>) */
-    .form-group ul,
-    .field-item ul {
-        list-style: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        display: flex !important;
-        flex-wrap: wrap !important;
-        gap: 8px !important;
-    }
-
-    .form-group ul li,
-    .field-item ul li {
-        display: inline-flex !important;
-        align-items: center !important;
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 6px 12px;
-        transition: all 0.15s;
-    }
-
-    .form-group ul li:hover,
-    .field-item ul li:hover {
-        background: #f0f9ff;
-        border-color: #93c5fd;
-    }
-
-    .form-group ul li label,
-    .field-item ul li label {
-        display: inline-flex !important;
-        align-items: center !important;
-        gap: 6px !important;
-        text-transform: none !important;
-        font-size: 13px !important;
-        font-weight: 500 !important;
-        color: #334155 !important;
-        cursor: pointer !important;
-        letter-spacing: normal !important;
-        margin: 0 !important;
-    }
-
-    .form-group ul li label input,
-    .field-item ul li label input {
-        width: auto !important;
-        margin: 0 !important;
-    }
-
-    /* Option cochée */
-    .form-group ul li:has(input:checked),
-    .field-item ul li:has(input:checked) {
-        background: #eff6ff;
-        border-color: #2563eb;
-    }
-
-    .form-group ul li:has(input:checked) label,
-    .field-item ul li:has(input:checked) label {
-        color: #2563eb !important;
-        font-weight: 600 !important;
-    } {% endcomment %}
-
-
     /* ================================================ */
     /* ✅ CORRECTION : CHECKBOXES ET RADIOS HORIZONTAUX */
     /* ================================================ */
@@ -695,7 +624,7 @@
         </div>
     </div>
 
-    <!-- ================================================ -->
+    {% comment %} <!-- ================================================ -->
     <!-- TAB 4 : ACCOUCHEMENT -->
     <!-- ================================================ -->
     <div class="form-step" data-step="4">
@@ -713,7 +642,7 @@
             <button type="button" class="btn-nav" onclick="goToStep(3)">← Précédent</button>
             <button type="button" class="btn-nav primary" onclick="goToStep(5)">Suivant →</button>
         </div>
-    </div>
+    </div> {% endcomment %}
 
     <!-- ================================================ -->
     <!-- TAB 5 : ALIMENTATION -->
@@ -1197,12 +1126,12 @@
         </div>
         <div class="form-navigation">
             <button type="button" class="btn-nav" onclick="goToStep(12)">← Précédent</button>
-            <button type="submit" class="btn-submit-final">
-                ✓ Valider et Terminer
-            </button>
         </div>
     </div>
 
+    <button type="submit" class="btn-submit-final">
+        ✓ Valider et Terminer
+    </button>
 </form>
 {% endblock %}
 

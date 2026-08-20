@@ -75,7 +75,6 @@ class ObservationMedicaleForm(forms.ModelForm):
             'adresse',
             'telephone',
             'lit',
-            'numero_dossier',
             'date_admission',
             'motif_admission',
             'diagnostic_retenu',
@@ -805,7 +804,7 @@ class ExamenPhysiqueForm(forms.ModelForm):
             attrs={"type": "datetime-local"},
             format="%Y-%m-%dT%H:%M",
         ),
-        required=True,
+        required=False,
         label="Date et heure de l'examen",
     )
 

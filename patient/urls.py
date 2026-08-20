@@ -126,4 +126,18 @@ urlpatterns = [
         views.examen_paraclinique_delete,
         name="examen_paraclinique_delete",
     ),
+
+
+    path("observations/etat_civil/", views.create_etat_civil, name="etat_civil"),
+    path("observations/<int:pk>/atcd_familial/", views.create_atcd_familial, name="atcd_familial"),
+    path("observations/<int:pk>/grossesse/", views.create_grossesse, name="grossesse"),
+    path("observations/<int:pk>/accouchement/", views.create_accouchement, name="accouchement"),
+    path("observations/<int:pk>/alimentation/", views.create_alimentation, name="alimentation"),
+    path("observations/<int:pk>/vaccination/", views.create_vaccination, name="vaccination"),
+    path("observations/<int:pk>/social/", views.create_social, name="social"),
+    path("observations/<int:pk>/dpm/", views.create_dpm, name="dpm"),
+    path("observations/<int:pk>/hdm/", views.create_hdm, name="hdm"),
+    path("observations/<int:pk>/examen/", views.create_examen, name="examen"),
+    path("observations/<int:pk>/discussion/", views.create_discussion, name="discussion"),
+    path("observations/<int:pk>/traitement/", views.create_traitement, name="traitement"),
 ]

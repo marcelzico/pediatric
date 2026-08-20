@@ -70,7 +70,7 @@ class ObservationMedicale(models.Model):
         verbose_name="Nom",
     )
     prenoms = models.CharField(
-        max_length=255,
+        max_length=255, blank=True, null=True,
         verbose_name="Prénom(s)",
     )
     sexe = models.CharField(
@@ -110,12 +110,7 @@ class ObservationMedicale(models.Model):
         blank=True,
         verbose_name="Lit n°",
     )
-    numero_dossier = models.CharField(
-        max_length=50,
-        null=True,
-        blank=True,
-        verbose_name="N° dossier",
-    )
+
     date_admission = models.DateField(
         null=True,
         blank=True,
@@ -795,21 +790,25 @@ class DeveloppementPsychomoteur(models.Model):
     langage = models.TextField(
         null=True,
         blank=True,
+        default=C.DPM_LANGAGE,
         verbose_name="Langage",
     )
     motricite = models.TextField(
-        null=True,
+        null=True, 
         blank=True,
+        default=C.DPM_MOTRICITE,
         verbose_name="Motricité",
     )
     prehension = models.TextField(
         null=True,
         blank=True,
+        default=C.DPM_PREHENSION,
         verbose_name="Préhension",
     )
     relationnelle = models.TextField(
         null=True,
         blank=True,
+        default=C.DPM_RELATIONNEL,
         verbose_name="Relationnelle",
     )
     conclusion = models.CharField(
@@ -1949,8 +1948,8 @@ class ExamenParaclinique(models.Model):
         ordering = ["-date_examen", "-created_at"]
 
     def __str__(self):
-        nom = self.get_nom_examen_display() or self.nom_examen_autre or "Examen"
-        return f"{nom} - {self.observation}"
+        # nom = self.get_nom_examen_display() or self.nom_examen_autre or "Examen"
+        return f"{self.observation}"
 
     @property
     def nom_examen_display(self):

@@ -62,7 +62,6 @@ class ObservationRelatedAdmin(admin.ModelAdmin):
     search_fields = (
         "observation__nom",
         "observation__prenoms",
-        "observation__numero_dossier",
         "observation__lit",
     )
 
@@ -82,7 +81,6 @@ class ObservationMedicaleAdmin(admin.ModelAdmin):
         observation_age_display,
         "sexe",
         "date_admission",
-        "numero_dossier",
         "created_at",
     )
     list_filter = (
@@ -93,7 +91,6 @@ class ObservationMedicaleAdmin(admin.ModelAdmin):
         "id",
         "nom",
         "prenoms",
-        "numero_dossier",
         "lit",
         "motif_admission",
         "diagnostic_retenu",
@@ -367,7 +364,7 @@ class EvaluationHoraireRehydratationAdmin(admin.ModelAdmin):
     search_fields = (
         "fiche_rehydratation__observation__nom",
         "fiche_rehydratation__observation__prenoms",
-        "fiche_rehydratation__observation__numero_dossier",
+        "fiche_rehydratation__observation__lit",
     )
     date_hierarchy = "heure_evaluation"
 
@@ -421,6 +418,5 @@ class LigneTraitementAdmin(admin.ModelAdmin):
         "instructions",
         "ajustement__observation__nom",
         "ajustement__observation__prenoms",
-        "ajustement__observation__numero_dossier",
     )
     

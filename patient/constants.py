@@ -231,6 +231,44 @@ EVOLUTION_EPISODE_CHOICES = [
 # ============================================================
 # DÉVELOPPEMENT PSYCHOMOTEUR (ENFANT)
 # ============================================================
+DPM_LANGAGE = """
+Emission des sons gutturaux à 1-2 mois ; 
+gazouillement à 3-4 mois ; 
+babillage à 5-6 mois ; 
+syllabes à 7-8 mois ; 
+comprends ce qu\'on lui dit à 13-18 mois ; 
+phrase complète à 24 mois et pose des questions à 36 mois
+"""
+
+DPM_MOTRICITE = """
+Reflexes archaïques et marche automatique à 1 mois; 
+tient sa tête, roule sur le côté à 3-4 mois ; 
+tient assis avec soutient, appui sur ses mains, roule sur le ventre et dos à 5-6 mois ; 
+tient assis seul, joue avec ses pieds à 7-8 mois ; 
+déplace à 4 pattes, tient debout à 9-10 mois ; 
+pousse l\'objet avant lui à 11-12 mois ; 
+marche, monte des escaliers à 13-18 mois ; 
+courrir, sauter 24
+"""
+
+DPM_RELATIONNEL = """
+pleur, reconnaît la voix de sa mère à 1-2 mois ; 
+cri, reconnait le visage de la familier à 3-4 mois ; 
+montre de l\'intérêt pour les objets à 6-7 mois ; 
+imite les gestes et les expressions faciales à 8-9 mois ; 
+développe une relation affective avec les soignants à 10-12 mois
+"""
+
+DPM_PREHENSION = """
+reflexe d\'agrippement à 1 mois ; 
+préhension en contact à 3-4 mois ; 
+préhension volontaire et porte des objets dans la bouche à 5-6 mois; 
+relache un objet à la main volontaire et préhesion en pince inférieure à 7-8 mois ; 
+préhension en pince supérieure à 9-10 mois ; 
+tend ses jouets, pointe l\'index à 11-12 mois ; 
+jeter, tient la cuillère à 13-18 mois ; 
+tourner les pages du livre, tient parfaitement la cuillère à 24 mois
+"""
 
 DPM_CONCLUSION_CHOICES = [
     ("normal", "Normal"),
