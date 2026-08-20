@@ -624,7 +624,7 @@
         </div>
     </div>
 
-    {% comment %} <!-- ================================================ -->
+    <!-- ================================================ -->
     <!-- TAB 4 : ACCOUCHEMENT -->
     <!-- ================================================ -->
     <div class="form-step" data-step="4">
@@ -642,7 +642,7 @@
             <button type="button" class="btn-nav" onclick="goToStep(3)">← Précédent</button>
             <button type="button" class="btn-nav primary" onclick="goToStep(5)">Suivant →</button>
         </div>
-    </div> {% endcomment %}
+    </div> 
 
     <!-- ================================================ -->
     <!-- TAB 5 : ALIMENTATION -->
@@ -753,7 +753,7 @@
     <!-- ================================================ -->
     <!-- TAB 9 : DPM & ATCD (ENFANT SEULEMENT) -->
     <!-- ================================================ -->
-    {% if is_enfant %}
+    {% comment %} {% if is_enfant %} {% endcomment %}
     <div class="form-step" data-step="9">
         <h4><span class="step-number">9</span>Développement Psychomoteur</h4>
         <div class="main-form-section">
@@ -781,7 +781,7 @@
             <button type="button" class="btn-nav primary" onclick="goToStep(10)">Suivant →</button>
         </div>
     </div>
-    {% endif %}
+    {% comment %} {% endif %}  {% endcomment %}
 
     <!-- ================================================ -->
     <!-- TAB 10 : EXAMEN CLINIQUE (AVEC SOUS-ONGLETS) -->

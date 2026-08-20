@@ -440,12 +440,10 @@ class Accouchement(models.Model):
         verbose_name="Abondance du liquide amniotique",
     )
 
-    poids_naissance_kg = models.DecimalField(
-        max_digits=5,
-        decimal_places=3,
+    poids_naissance_kg = models.IntegerField(
         null=True,
         blank=True,
-        verbose_name="Poids de naissance (kg)",
+        verbose_name="Poids de naissance (g)",
     )
     poids_naissance_type = models.CharField(
         max_length=20,

@@ -7,7 +7,7 @@ from docx.shared import Pt, Cm, RGBColor
 
 
 class Command(BaseCommand):
-    help = "Génère le template DOCX avec une mise en forme professionnelle (version texte simplifiée)."
+    help = "Génère le template DOCX avec mise en forme professionnelle (texte structuré)."
 
     def handle(self, *args, **options):
         app_dir = Path(__file__).resolve().parents[2]
@@ -17,7 +17,7 @@ class Command(BaseCommand):
 
         doc = Document()
 
-        # 1. Configuration du style Normal
+        # 1. Style Normal
         style = doc.styles["Normal"]
         style.font.name = "Calibri"
         style.font.size = Pt(10)
@@ -30,7 +30,7 @@ class Command(BaseCommand):
             section.left_margin = Cm(2)
             section.right_margin = Cm(2)
 
-        # 2. TITRE PRINCIPAL
+        # 2. TITRE
         title_para = doc.add_paragraph()
         title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         title_run = title_para.add_run("{{ title }}")
@@ -43,7 +43,7 @@ class Command(BaseCommand):
         separator_run.font.size = Pt(6)
         separator_run.font.color.rgb = RGBColor(100, 100, 100)
 
-        # 3. BOUCLE SUR LES SECTIONS
+        # 3. BOUCLE SECTIONS
         doc.add_paragraph("{% for section in sections %}")
 
         section_title_para = doc.add_paragraph()
@@ -64,20 +64,18 @@ class Command(BaseCommand):
         block_title_run.font.size = Pt(11)
         block_title_run.font.italic = True
 
-        # 4. BOUCLE SUR LES LIGNES (SIMPLIFIÉE, SANS TABLEAU)
+        # 4. BOUCLE LIGNES (SIMPLE, SANS TABLEAU)
         doc.add_paragraph("{% for line in block.lines %}")
 
         line_para = doc.add_paragraph()
         line_para.paragraph_format.left_indent = Cm(0.5)
         line_para.paragraph_format.space_after = Pt(1)
-        line_run = line_para.add_run("{{ line }}")
-        line_run.font.size = Pt(10)
+        line_para.add_run("{{ line }}").font.size = Pt(10)
 
-        doc.add_paragraph("{% endfor %}")  # fin for lines
+        doc.add_paragraph("{% endfor %}")
 
         doc.add_paragraph("{% endfor %}")  # fin for blocks
 
-        # Séparateur entre sections
         section_sep_para = doc.add_paragraph()
         section_sep_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         section_sep_para.add_run("• • •").font.size = Pt(8)
@@ -94,11 +92,12 @@ class Command(BaseCommand):
         footer_run.font.italic = True
         footer_run.font.color.rgb = RGBColor(128, 128, 128)
 
-        # Sauvegarde
         doc.save(template_path)
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Template DOCX généré avec succès (version texte) : {template_path}"
+                f"Template DOCX généré avec succès : {template_path}"
             )
         )
+
+        

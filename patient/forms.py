@@ -177,6 +177,35 @@ class GrossesseForm(forms.ModelForm):
 class AccouchementForm(forms.ModelForm):
     """Formulaire pour les détails de l'accouchement."""
     
+    # ✅ Tous les ChoiceField sont redéfinis explicitement avec required=False
+    presentation = forms.ChoiceField(
+        choices=[('', '--- Choisir ---')] + C.PRESENTATION_CHOICES,
+        widget=forms.Select,
+        required=False,
+        label="Présentation",
+    )
+    
+    terme = forms.ChoiceField(
+        choices=[('', '--- Choisir ---')] + C.TERME_CHOICES,
+        widget=forms.RadioSelect,
+        required=False,
+        label="Terme",
+    )
+    
+    voie = forms.ChoiceField(
+        choices=[('', '--- Choisir ---')] + C.VOIE_ACCOUCHEMENT_CHOICES,
+        widget=forms.RadioSelect,
+        required=False,
+        label="Voie d'accouchement",
+    )
+    
+    manoeuvre_obstetricale = JSONMultipleChoiceField(
+        choices=C.MANOEUVRE_OBSTETRICALE_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Manœuvre obstétricale",
+    )
+    
     cri_immediat = forms.ChoiceField(
         choices=[('', '---')] + C.OUI_NON_CHOICES,
         widget=forms.RadioSelect,
@@ -197,13 +226,72 @@ class AccouchementForm(forms.ModelForm):
         required=False,
         label="Réanimation ?",
     )
-
-    # 👇 CORRECTION DU BUG ICI 👇
-    manoeuvre_obstetricale = JSONMultipleChoiceField(
-        choices=C.MANOEUVRE_OBSTETRICALE_CHOICES,
-        widget=forms.CheckboxSelectMultiple,
+    
+    liquide_amniotique_couleur = forms.ChoiceField(
+        choices=[('', '--- Choisir ---')] + C.COULEUR_LIQUIDE_AMNIOTIQUE_CHOICES,
+        widget=forms.Select,
         required=False,
-        label="Manœuvre obstétricale",
+        label="Couleur du liquide amniotique",
+    )
+    
+    liquide_amniotique_abondance = forms.ChoiceField(
+        choices=[('', '--- Choisir ---')] + C.ABONDANCE_LIQUIDE_AMNIOTIQUE_CHOICES,
+        widget=forms.Select,
+        required=False,
+        label="Abondance du liquide amniotique",
+    )
+    
+    poids_naissance_type = forms.ChoiceField(
+        choices=[('', '--- Choisir ---')] + C.POIDS_NAISSANCE_TYPE_CHOICES,
+        widget=forms.RadioSelect,
+        required=False,
+        label="Type de poids de naissance",
+    )
+    
+    type_accouchement = forms.ChoiceField(
+        choices=[('', '--- Choisir ---')] + C.TYPE_ACCOUCHEMENT_CHOICES,
+        widget=forms.RadioSelect,
+        required=False,
+        label="Type d'accouchement",
+    )
+    
+    adaptation_neonatale = forms.ChoiceField(
+        choices=[('', '--- Choisir ---')] + C.ADAPTATION_NEONATALE_CHOICES,
+        widget=forms.RadioSelect,
+        required=False,
+        label="Adaptation néonatale",
+    )
+    
+    # Champs numériques avec required=False
+    duree_travail_minutes = forms.IntegerField(
+        required=False,
+        label="Durée du travail (minutes)",
+        widget=forms.NumberInput(attrs={'min': 0}),
+    )
+    
+    duree_poussee_minutes = forms.IntegerField(
+        required=False,
+        label="Durée de poussée (minutes)",
+        widget=forms.NumberInput(attrs={'min': 0}),
+    )
+    
+    indice_apgar = forms.IntegerField(
+        required=False,
+        label="Indice d'Apgar",
+        widget=forms.NumberInput(attrs={'min': 0, 'max': 10}),
+    )
+    
+    duree_reanimation_minutes = forms.IntegerField(
+        required=False,
+        label="Durée de réanimation (minutes)",
+        widget=forms.NumberInput(attrs={'min': 0}),
+    )
+    
+    poids_naissance_kg = forms.DecimalField(
+        required=False,
+        label="Poids de naissance (kg)",
+        widget=forms.NumberInput(attrs={'min': 0, 'step': '0.01'}),
+        decimal_places=3,
     )
     
     class Meta:
@@ -217,7 +305,7 @@ class AccouchementForm(forms.ModelForm):
             'duree_poussee_minutes',
             'terme',
             'voie',
-            'manoeuvre_obstetricale',  # Le champ est maintenant bien typé
+            'manoeuvre_obstetricale',
             'cri_immediat',
             'indice_apgar',
             'asphyxie',
@@ -232,20 +320,36 @@ class AccouchementForm(forms.ModelForm):
             'conclusion',
         ]
         widgets = {
+            'lieu': forms.TextInput(attrs={'placeholder': 'Lieu de l\'accouchement'}),
             'ddr': forms.DateInput(attrs={'type': 'date'}),
             'dpa': forms.DateInput(attrs={'type': 'date'}),
-            'presentation': forms.Select,
-            'terme': forms.RadioSelect,
-            'voie': forms.RadioSelect,
-            # On peut laisser le widget ici, ça ne gêne pas, mais la redéfinition au-dessus prime
-            'manoeuvre_obstetricale': forms.CheckboxSelectMultiple,
-            'liquide_amniotique_couleur': forms.Select,
-            'liquide_amniotique_abondance': forms.Select,
-            'poids_naissance_type': forms.RadioSelect,
-            'type_accouchement': forms.RadioSelect,
-            'adaptation_neonatale': forms.RadioSelect,
             'conclusion': forms.Textarea(attrs={'rows': 2}),
         }
+    
+    def clean(self):
+        """
+        Nettoie les données et convertit les valeurs vides en None
+        pour les champs booléens et numériques.
+        """
+        cleaned_data = super().clean()
+        
+        # Liste des champs qui doivent être None si vides
+        nullable_fields = [
+            'presentation', 'terme', 'voie', 'cri_immediat', 'asphyxie', 
+            'reanimation', 'liquide_amniotique_couleur', 'liquide_amniotique_abondance',
+            'poids_naissance_type', 'type_accouchement', 'adaptation_neonatale',
+            'duree_travail_minutes', 'duree_poussee_minutes', 'indice_apgar',
+            'duree_reanimation_minutes', 'poids_naissance_kg'
+        ]
+        
+        for field_name in nullable_fields:
+            value = cleaned_data.get(field_name)
+            # Convertir les chaînes vides en None
+            if value == '' or value == '---' or value == '--- Choisir ---':
+                cleaned_data[field_name] = None
+        
+        return cleaned_data
+
 
 # ============================================================
 # 5. ALIMENTATION
@@ -451,10 +555,10 @@ class DeveloppementPsychomoteurForm(forms.ModelForm):
             'conclusion',
         ]
         widgets = {
-            'langage': forms.Textarea(attrs={'rows': 2}),
-            'motricite': forms.Textarea(attrs={'rows': 2}),
-            'prehension': forms.Textarea(attrs={'rows': 2}),
-            'relationnelle': forms.Textarea(attrs={'rows': 2}),
+            'langage': forms.Textarea(attrs={'rows': 7}),
+            'motricite': forms.Textarea(attrs={'rows': 7}),
+            'prehension': forms.Textarea(attrs={'rows': 7}),
+            'relationnelle': forms.Textarea(attrs={'rows': 7}),
             'conclusion': forms.RadioSelect,
         }
 
@@ -1298,8 +1402,6 @@ class SerologiesForm(forms.Form):
                 "resultat": self[f"{key}_resultat"],
             })
         return groups
-
-
 
 
 class BaseExamenAppareilForm(forms.Form):
