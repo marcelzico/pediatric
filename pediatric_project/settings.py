@@ -127,6 +127,14 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",   
 ]
 
+
+# The public URL prefix for media files
+MEDIA_URL = '/media/'
+
+# The absolute filesystem path where uploaded files will save
+MEDIA_ROOT = BASE_DIR / 'media'
+
+
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
