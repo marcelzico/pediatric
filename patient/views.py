@@ -517,7 +517,7 @@ def observation_detail(request, pk):
     antecedents_personnels = get_related_instance(observation, "antecedents_personnels")
     examen_clinique = get_related_instance(observation, "examen_clinique")
     traitement = get_related_instance(observation, "traitement")
-
+ 
     episodes = observation.episodes_histoire_maladie.all()
     hypotheses = observation.hypotheses_diagnostiques.all()
     evolutions = observation.evolutions.all()

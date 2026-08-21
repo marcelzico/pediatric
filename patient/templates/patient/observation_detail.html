@@ -740,7 +740,7 @@
                     <div class="info-row">
                         <span class="label">Motif</span>
                         <span class="value {% if not observation.motif_admission %}empty{% endif %}">
-                            {{ observation.motif_admission|truncatechars:80|default:"Non renseigné" }}
+                            {{ observation.motif_admission|linebreaks|default:"Non renseigné" }}
                         </span>
                     </div>
                 </div>
@@ -753,7 +753,7 @@
                     <div class="info-row">
                         <span class="label">Diagnostic retenu</span>
                         <span class="value {% if not observation.diagnostic_retenu %}empty{% endif %}">
-                            {{ observation.diagnostic_retenu|truncatechars:100|default:"Non renseigné" }}
+                            {{ observation.diagnostic_retenu|default:"Non renseigné" }}
                         </span>
                     </div>
                 </div>
@@ -1228,9 +1228,9 @@
             </a>
         </div>
 
-        {% if examens_physiques_formatted %}
+        {% if examens_physiques %}
             <div class="timeline">
-                {% for examen_data in examens_physiques_formatted %}
+                {% for examen_data in examens_physiques %}
                     {% with examen=examen_data.instance %}
                         <div class="timeline-item">
                             <div class="timeline-header">
@@ -1356,7 +1356,7 @@
                 </div>
             </div>
         {% endif %}
-    </div> {% endcomment %}
+    </div>  {% endcomment %}
 
     <!-- ================================================ -->
     <!-- TAB: SUIVI HOSPITALIER -->
@@ -1378,7 +1378,12 @@
                 <a href="{% url 'patient:examen_physique_create' observation.pk %}" class="btn btn-primary" style="padding:8px 14px; font-size:12px;">
                     + Nouvel examen
                 </a>
+
+                <a href="{% url 'patient:examen_physique_list' observation.pk %}" class="btn btn-primary" style="padding:8px 14px; font-size:12px;">
+                    📋 Liste des examens
+                </a>
             </div>
+
 
             {% if examens_physiques %}
                 <div class="timeline">
@@ -1540,7 +1545,7 @@
                 </div>
             {% endif %}
         </div>
-    </div>
+    </div> 
 
     <!-- ================================================ -->
     <!-- TAB: DIAGNOSTIC & TRAITEMENT -->
@@ -1566,13 +1571,13 @@
                                 {% if hypo.arguments_pour %}
                                     <div class="info-row">
                                         <span class="label">Arguments pour</span>
-                                        <span class="value">{{ hypo.arguments_pour|truncatechars:80 }}</span>
+                                        <span class="value">{{ hypo.arguments_pour|linebreaks }}</span>
                                     </div>
                                 {% endif %}
                                 {% if hypo.arguments_contre %}
                                     <div class="info-row">
                                         <span class="label">Arguments contre</span>
-                                        <span class="value">{{ hypo.arguments_contre|truncatechars:80 }}</span>
+                                        <span class="value">{{ hypo.arguments_contre|linebreaks }}</span>
                                     </div>
                                 {% endif %}
                             </div>
@@ -1611,19 +1616,19 @@
                         {% if traitement.symptomatique %}
                             <div class="info-row">
                                 <span class="label">Symptomatique</span>
-                                <span class="value">{{ traitement.symptomatique|truncatechars:100 }}</span>
+                                <span class="value">{{ traitement.symptomatique|linebreaks }}</span>
                             </div>
                         {% endif %}
                         {% if traitement.etiologique %}
                             <div class="info-row">
                                 <span class="label">Étiologique</span>
-                                <span class="value">{{ traitement.etiologique|truncatechars:100 }}</span>
+                                <span class="value">{{ traitement.etiologique|linebreaks }}</span>
                             </div>
                         {% endif %}
                         {% if traitement.surveillance %}
                             <div class="info-row">
                                 <span class="label">Surveillance</span>
-                                <span class="value">{{ traitement.surveillance|truncatechars:100 }}</span>
+                                <span class="value">{{ traitement.surveillance|linebreaks }}</span>
                             </div>
                         {% endif %}
                     {% else %}

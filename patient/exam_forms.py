@@ -215,17 +215,37 @@ class BaseExamenAppareilForm(forms.Form):
         super().__init__(*args, **kwargs)
 
     def get_json(self):
+        """
+        Replie les données du formulaire en structure JSON.
+        Convertit automatiquement les Decimal en float pour la sérialisation JSON.
+        """
+        from decimal import Decimal
+        
         if not self.is_valid():
-            raise ValueError("Le formulaire d'examen doit être valide avant conversion JSON.")
-
-        base = deepcopy(C.EXAMEN_DEFAULTS.get(self.appareil_key, {}))
-
-        flat = {}
+            return self.json_data
+        
+        result = {}
         for field_name in self.fields.keys():
-            flat[field_name] = self.cleaned_data.get(field_name)
-
-        updates = unflatten_flat(flat)
-        return deep_update(base, updates)
+            value = self.cleaned_data.get(field_name)
+            
+            # ✅ Conversion des Decimal en float
+            if isinstance(value, Decimal):
+                value = float(value)
+            
+            # Gestion des champs imbriqués (ex: inspection__frequence_respiratoire)
+            if "__" in field_name:
+                parts = field_name.split("__")
+                current = result
+                for part in parts[:-1]:
+                    if part not in current:
+                        current[part] = {}
+                    current = current[part]
+                current[parts[-1]] = value
+            else:
+                result[field_name] = value
+        
+        return result
+    
 
     def grouped_fields(self):
         """
